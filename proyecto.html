@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Redirigiendo… | FrameFlow</title>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      window.location.replace(
+        id ? `proyecto-detalle.html?id=${encodeURIComponent(id)}` : 'proyectos.html'
+      );
+    })();
+  </script>
+</head>
+<body></body>
+</html>

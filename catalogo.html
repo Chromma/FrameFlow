@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Catálogo Inteligente | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .leaflet-container { background: #18181b; font-family: Inter, system-ui, sans-serif; }
+    .leaflet-popup-content-wrapper {
+      background: #18181b;
+      color: #fafafa;
+      border: 1px solid #3f3f46;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .leaflet-popup-tip { background: #18181b; border: 1px solid #3f3f46; }
+    .leaflet-popup-content { margin: 0; min-width: 200px; }
+    .price-pin {
+      background: #09090b;
+      border: 1px solid #3f3f46;
+      color: #fafafa;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 9999px;
+      white-space: nowrap;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+      cursor: pointer;
+    }
+    .price-pin:hover, .price-pin.active {
+      background: #0891b2;
+      border-color: #22d3ee;
+      transform: scale(1.08);
+      z-index: 1000 !important;
+    }
+    .filter-dropdown.open .filter-panel { display: block; }
+    .filter-dropdown.open .filter-chevron { transform: rotate(180deg); }
+    .search-picker.open .search-picker-panel { display: block; }
+    .view-panel { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    .catalog-card { min-height: 0; }
+    .catalog-toast { animation: toastIn 0.22s ease-out; }
+    #assign-menu { min-width: 220px; }
+    .dest-group-label {
+      padding: 0.5rem 1rem 0.25rem;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #71717a;
+    }
+    .dest-level-badge {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(8, 145, 178, 0.15);
+      color: #22d3ee;
+    }
+  </style>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="catalogo">
+
+  <div class="flex h-full min-h-screen">
+
+    <div id="sidebar-mount" class="contents"></div>
+
+    <!-- MAIN -->
+    <main class="flex flex-1 flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div class="flex items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300" aria-label="Menú">
+            <i data-lucide="menu" class="h-5 w-5"></i>
+          </button>
+          <div class="flex-1 min-w-0">
+            <h1 class="text-lg font-semibold text-white sm:text-xl">Catálogo Inteligente</h1>
+            <p class="text-xs text-zinc-500 hidden sm:block">Locaciones y casting para producción audiovisual</p>
+          </div>
+        </div>
+
+        <!-- Pestañas Locaciones / Casting -->
+        <div class="px-4 sm:px-6 lg:px-8 flex flex-wrap items-center gap-3 pb-3">
+          <div class="inline-flex rounded-xl border border-zinc-800 bg-zinc-900/60 p-1" role="tablist" aria-label="Vista del catálogo">
+            <button type="button" id="tab-locaciones" data-tab="locaciones" class="catalog-tab flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all" role="tab" aria-selected="true">
+              <i data-lucide="map-pin" class="h-4 w-4"></i>
+              Locaciones
+            </button>
+            <button type="button" id="tab-casting" data-tab="casting" class="catalog-tab flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all" role="tab" aria-selected="false">
+              <i data-lucide="users" class="h-4 w-4"></i>
+              Casting
+            </button>
+          </div>
+        </div>
+
+        <!-- Buscador compacto estilo Airbnb: destino + fechas -->
+        <div id="search-bar" class="border-t border-zinc-800/60 px-4 py-3 sm:px-6 lg:px-8 bg-zinc-950/70">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:max-w-3xl">
+            <div id="dest-search-wrap" class="search-picker relative flex-1 min-w-0">
+              <button type="button" id="dest-search-trigger" class="flex w-full items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-2.5 text-left shadow-sm hover:border-zinc-600 transition-colors" aria-expanded="false" aria-haspopup="listbox">
+                <i data-lucide="map-pin" class="h-4 w-4 shrink-0 text-zinc-500"></i>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">¿Dónde?</span>
+                  <span id="dest-search-value" class="block truncate text-sm text-zinc-300">Buscar destino</span>
+                </span>
+                <i data-lucide="chevron-down" class="h-4 w-4 shrink-0 text-zinc-500"></i>
+              </button>
+              <div id="dest-dropdown" class="search-picker-panel hidden absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-2xl shadow-black/50">
+                <div class="border-b border-zinc-800 p-2">
+                  <input id="dest-search-input" type="search" placeholder="País, ciudad o zona (ej. Guayaquil, Vía a la Costa)..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" autocomplete="off" />
+                </div>
+                <p class="px-3 py-1.5 text-[10px] text-zinc-600 border-b border-zinc-800/80">Desde región amplia hasta zona específica</p>
+                <ul id="dest-suggestions" class="max-h-64 overflow-y-auto py-1" role="listbox"></ul>
+              </div>
+            </div>
+            <div id="date-search-wrap" class="search-picker relative sm:w-56 shrink-0">
+              <button type="button" id="date-search-trigger" class="flex w-full items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-2.5 text-left shadow-sm hover:border-zinc-600 transition-colors" aria-expanded="false">
+                <i data-lucide="calendar" class="h-4 w-4 shrink-0 text-zinc-500"></i>
+                <span class="min-w-0 flex-1">
+                  <span class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Fechas</span>
+                  <span id="date-search-value" class="block truncate text-sm text-zinc-300">Añadir fechas</span>
+                </span>
+              </button>
+              <div id="date-dropdown" class="search-picker-panel hidden absolute right-0 left-0 sm:left-auto sm:w-72 top-full z-50 mt-2 rounded-xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl shadow-black/50">
+                <p class="text-xs font-medium text-zinc-400 mb-3">Rango de rodaje</p>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <label for="date-from" class="block text-[10px] uppercase text-zinc-500 mb-1">Desde</label>
+                    <input id="date-from" type="date" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-2 py-2 text-xs [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+                  </div>
+                  <div>
+                    <label for="date-to" class="block text-[10px] uppercase text-zinc-500 mb-1">Hasta</label>
+                    <input id="date-to" type="date" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-2 py-2 text-xs [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+                  </div>
+                </div>
+                <div class="mt-3 flex gap-2">
+                  <button type="button" id="date-clear" class="flex-1 rounded-lg border border-zinc-700 py-2 text-xs text-zinc-400 hover:bg-zinc-800">Limpiar</button>
+                  <button type="button" id="date-apply" class="flex-1 rounded-lg bg-cyan-500/20 py-2 text-xs font-semibold text-cyan-400 hover:bg-cyan-500/30">Aplicar</button>
+                </div>
+              </div>
+            </div>
+            <button type="button" id="search-clear-all" class="hidden self-center text-xs text-zinc-500 hover:text-cyan-400 whitespace-nowrap px-1">Limpiar búsqueda</button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Filtros Locaciones -->
+      <div id="loc-filters-bar" class="border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="filter-dropdown relative" data-filter="precio">
+            <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+              <span class="filter-label">Precio</span>
+              <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+            </button>
+            <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-52 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+              <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Cualquier precio</button>
+              <button type="button" data-value="low" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Hasta $500 / jornada</button>
+              <button type="button" data-value="mid" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">$500 – $900</button>
+              <button type="button" data-value="high" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Más de $900</button>
+            </div>
+          </div>
+          <div class="filter-dropdown relative" data-filter="tipo">
+            <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+              <span class="filter-label">Tipo de Espacio</span>
+              <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+            </button>
+            <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-44 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+              <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Todos</button>
+              <button type="button" data-value="interno" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Interno</button>
+              <button type="button" data-value="externo" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Externo</button>
+            </div>
+          </div>
+          <div class="filter-dropdown relative" data-filter="capacidad">
+            <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+              <span class="filter-label">Capacidad</span>
+              <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+            </button>
+            <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-48 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+              <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Cualquiera</button>
+              <button type="button" data-value="small" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Hasta 15 personas</button>
+              <button type="button" data-value="medium" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">16 – 40 personas</button>
+              <button type="button" data-value="large" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Más de 40</button>
+            </div>
+          </div>
+          <div class="filter-dropdown relative" data-filter="mobiliario">
+            <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+              <span class="filter-label">Mobiliario</span>
+              <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+            </button>
+            <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-52 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+              <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Cualquier estilo</button>
+              <button type="button" data-value="minimalista" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Minimalista</button>
+              <button type="button" data-value="industrial" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Industrial</button>
+              <button type="button" data-value="clasico" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Clásico / Vintage</button>
+              <button type="button" data-value="rustico" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Rústico</button>
+            </div>
+          </div>
+          <div class="filter-dropdown relative" data-filter="parqueadero">
+            <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+              <span class="filter-label">Parqueadero</span>
+              <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+            </button>
+            <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-40 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+              <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Indiferente</button>
+              <button type="button" data-value="si" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Sí</button>
+              <button type="button" data-value="no" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">No</button>
+            </div>
+          </div>
+          <button type="button" id="clear-loc-filters" class="ml-auto text-xs text-zinc-500 hover:text-cyan-400 transition-colors hidden">Limpiar filtros</button>
+        </div>
+        <p id="loc-results-count" class="mt-2 text-[11px] text-zinc-600"></p>
+      </div>
+
+      <!-- Filtros Casting -->
+      <div id="cast-filters-bar" class="hidden border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div class="relative flex-1 max-w-md">
+            <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"></i>
+            <input id="cast-search" type="search" placeholder="Buscar por nombre artístico o habilidad..." class="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" autocomplete="off" />
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <div class="filter-dropdown relative" data-filter="edad">
+              <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+                <span class="filter-label">Rango de edad</span>
+                <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+              </button>
+              <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-44 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+                <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Cualquiera</button>
+                <button type="button" data-value="18-25" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">18 – 25</button>
+                <button type="button" data-value="26-35" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">26 – 35</button>
+                <button type="button" data-value="36-50" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">36 – 50</button>
+              </div>
+            </div>
+            <div class="filter-dropdown relative" data-filter="tipoActor">
+              <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+                <span class="filter-label">Tipo de actor</span>
+                <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+              </button>
+              <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-40 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+                <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Todos</button>
+                <button type="button" data-value="voz" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Voz</button>
+                <button type="button" data-value="teatro" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Teatro</button>
+                <button type="button" data-value="cine" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Cine</button>
+              </div>
+            </div>
+            <div class="filter-dropdown relative" data-filter="habilidades">
+              <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+                <span class="filter-label">Habilidades</span>
+                <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+              </button>
+              <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-48 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+                <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Todas</button>
+                <button type="button" data-value="danza" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Danza</button>
+                <button type="button" data-value="accion" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Acción / Stunt</button>
+                <button type="button" data-value="idiomas" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Idiomas</button>
+                <button type="button" data-value="musica" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Música</button>
+              </div>
+            </div>
+            <div class="filter-dropdown relative" data-filter="estatura">
+              <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
+                <span class="filter-label">Estatura</span>
+                <i data-lucide="chevron-down" class="filter-chevron h-3.5 w-3.5 text-zinc-500 transition-transform"></i>
+              </button>
+              <div class="filter-panel hidden absolute left-0 top-full z-50 mt-2 w-44 rounded-xl border border-zinc-700 bg-zinc-900 p-2 shadow-2xl shadow-black/40">
+                <button type="button" data-value="" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-400 hover:bg-zinc-800">Cualquiera</button>
+                <button type="button" data-value="baja" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Hasta 1.65 m</button>
+                <button type="button" data-value="media" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">1.66 – 1.80 m</button>
+                <button type="button" data-value="alta" class="filter-option w-full rounded-lg px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800">Más de 1.80 m</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p id="cast-results-count" class="mt-2 text-[11px] text-zinc-600"></p>
+      </div>
+
+      <!-- Vista Locaciones 50/50 -->
+      <div id="view-locaciones" class="view-panel flex flex-1 min-h-0 overflow-hidden">
+        <div class="w-full lg:w-1/2 flex flex-col min-h-0 border-r border-zinc-800/80">
+          <div id="loc-map-hint" class="shrink-0 border-b border-zinc-800/60 bg-zinc-900/30 px-4 py-2 text-[11px] text-zinc-500 flex items-center gap-1.5">
+            <i data-lucide="scan" class="h-3.5 w-3.5 text-cyan-500/70"></i>
+            El grid muestra solo locaciones visibles en el mapa. Arrastra o haz zoom para explorar.
+          </div>
+          <div id="locaciones-grid" class="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max content-start"></div>
+          <p id="locaciones-empty" class="hidden py-10 text-center text-sm text-zinc-500 px-4">Ninguna locación en el área visible del mapa.</p>
+        </div>
+        <div id="map-panel" class="hidden lg:block lg:w-1/2 relative min-h-0">
+          <div id="map" class="absolute inset-0 z-0"></div>
+        </div>
+      </div>
+
+      <!-- Vista Casting (sin mapa, grid compacto simétrico) -->
+      <div id="view-casting" class="view-panel hidden flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 lg:px-6">
+        <div id="casting-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max content-start"></div>
+        <p id="casting-empty" class="hidden py-12 text-center text-sm text-zinc-500">Ningún perfil coincide con los filtros.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Menú flotante: Asignar a proyecto -->
+  <div id="assign-menu" class="hidden fixed z-[60] rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black/50" role="menu"></div>
+
+  <div id="catalog-toast" class="catalog-toast pointer-events-none fixed bottom-6 left-1/2 z-[70] hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900/95 px-4 py-3 text-sm text-emerald-400 shadow-2xl backdrop-blur-sm" role="status">
+    <span class="flex items-center gap-2">
+      <i data-lucide="check-circle" class="h-4 w-4"></i>
+      Añadido con éxito al proyecto
+    </span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="db.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    /* ============================================================
+       JERARQUÍA GEOGRÁFICA
+       ============================================================ */
+    const GEO_JERARQUIA = {
+      Ecuador: {
+        Guayaquil: ['Urdesa', 'Puerto Santa Ana', 'Centro Histórico', 'Samborondón', 'Vía a la Costa'],
+        Quito: ['La Mariscal', 'Cumbayá', 'Centro Histórico'],
+      },
+      Colombia: {
+        Bogotá: ['Chapinero', 'Usaquén', 'La Candelaria'],
+        Medellín: ['El Poblado', 'Laureles'],
+      },
+    };
+
+    /* ============================================================
+       LOCACIONES — Datos ficticios detallados (Guayaquil)
+       ============================================================ */
+    const LOCACIONES = [
+      {
+        id: 'loc-001',
+        nombre: 'Estudio Ciclorama Blanco',
+        reputacion: { estrellas: 4.9, resenas: 23 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
+        precioJornada: 680,
+        lat: -2.1689,
+        lng: -79.8976,
+        tipo: 'interno',
+        capacidad: 'small',
+        mobiliario: 'minimalista',
+        parqueadero: true,
+        imagenes: [
+          'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-10', '2026-06-12', '2026-06-15', '2026-06-18'],
+      },
+      {
+        id: 'loc-002',
+        nombre: 'Apartamento Minimalista',
+        reputacion: { estrellas: 4.8, resenas: 41 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' },
+        precioJornada: 920,
+        lat: -2.1962,
+        lng: -79.8774,
+        tipo: 'interno',
+        capacidad: 'small',
+        mobiliario: 'minimalista',
+        parqueadero: true,
+        imagenes: [
+          'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-08', '2026-06-09', '2026-06-14'],
+      },
+      {
+        id: 'loc-003',
+        nombre: 'Hacienda Rústica',
+        reputacion: { estrellas: 4.7, resenas: 18 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Samborondón' },
+        precioJornada: 1450,
+        lat: -2.1254,
+        lng: -79.8682,
+        tipo: 'externo',
+        capacidad: 'large',
+        mobiliario: 'rustico',
+        parqueadero: true,
+        imagenes: [
+          'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-11', '2026-06-13', '2026-06-20', '2026-06-22'],
+      },
+      {
+        id: 'loc-004',
+        nombre: 'Casona Colonial',
+        reputacion: { estrellas: 5.0, resenas: 12 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Centro Histórico' },
+        precioJornada: 1100,
+        lat: -2.1968,
+        lng: -79.8831,
+        tipo: 'externo',
+        capacidad: 'medium',
+        mobiliario: 'clasico',
+        parqueadero: false,
+        imagenes: [
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600585154363-7078838ed7bf?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753086-00f18fb576b9?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600047509358-9dc75507daeb?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-07', '2026-06-16', '2026-06-17'],
+      },
+      {
+        id: 'loc-005',
+        nombre: 'Loft Creativo Vía a la Costa',
+        reputacion: { estrellas: 4.6, resenas: 31 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Vía a la Costa' },
+        precioJornada: 780,
+        lat: -2.1421,
+        lng: -79.9124,
+        tipo: 'interno',
+        capacidad: 'medium',
+        mobiliario: 'industrial',
+        parqueadero: true,
+        imagenes: [
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-09', '2026-06-10', '2026-06-19'],
+      },
+      {
+        id: 'loc-006',
+        nombre: 'Terraza Skyline Urdesa',
+        reputacion: { estrellas: 4.5, resenas: 27 },
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
+        precioJornada: 540,
+        lat: -2.1712,
+        lng: -79.9015,
+        tipo: 'externo',
+        capacidad: 'small',
+        mobiliario: 'moderno',
+        parqueadero: false,
+        imagenes: [
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=600&h=400&fit=crop',
+        ],
+        disponibilidad: ['2026-06-12', '2026-06-14', '2026-06-15'],
+      },
+    ];
+
+    /* ============================================================
+       CASTING — Perfiles compactos con geo
+       ============================================================ */
+    const ACTORES = [
+      {
+        id: 'a1',
+        nombre: 'Valentina Ríos',
+        tipo: 'cine',
+        edad: 28,
+        estatura: 1.68,
+        skills: ['danza', 'idiomas'],
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
+        imagen: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=600&fit=crop&crop=faces',
+      },
+      {
+        id: 'a2',
+        nombre: 'Mateo Duarte',
+        tipo: 'teatro',
+        edad: 34,
+        estatura: 1.82,
+        skills: ['accion', 'musica'],
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Samborondón' },
+        imagen: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=600&fit=crop&crop=faces',
+      },
+      {
+        id: 'a3',
+        nombre: 'Lucía Navarro',
+        tipo: 'voz',
+        edad: 24,
+        estatura: 1.62,
+        skills: ['musica', 'idiomas'],
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Centro Histórico' },
+        imagen: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=600&fit=crop&crop=faces',
+      },
+      {
+        id: 'a4',
+        nombre: 'Diego Salinas',
+        tipo: 'cine',
+        edad: 41,
+        estatura: 1.78,
+        skills: ['accion', 'danza'],
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' },
+        imagen: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=600&fit=crop&crop=faces',
+      },
+    ];
+
+    const SKILL_LABELS = { danza: 'Danza', accion: 'Acción', idiomas: 'Idiomas', musica: 'Música' };
+    const TIPO_LABELS = { voz: 'Voz', teatro: 'Teatro', cine: 'Cine' };
+
+    const FILTER_DEFAULTS = {
+      loc: { precio: '', tipo: '', capacidad: '', mobiliario: '', parqueadero: '' },
+      cast: { edad: '', tipoActor: '', habilidades: '', estatura: '' },
+    };
+
+    let activeTab = 'locaciones';
+    let locFilters = { ...FILTER_DEFAULTS.loc };
+    let castFilters = { ...FILTER_DEFAULTS.cast };
+    let castSearch = '';
+    let geoFilter = { pais: '', ciudad: '', sector: '' };
+    let dateFilter = { start: '', end: '' };
+    let destSearchQuery = '';
+    let assignMenuContext = null;
+    let map = null;
+    let markers = {};
+    let mapInitialized = false;
+    let suppressMoveend = false;
+    let activeLocId = null;
+
+    /* ============================================================
+       UTILIDADES
+       ============================================================ */
+    function escapeHtml(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
+    function formatPrice(n) {
+      return '$' + n.toLocaleString('en-US');
+    }
+
+    function detailUrl(id) {
+      return `detalle-locacion.html?id=${encodeURIComponent(id)}`;
+    }
+
+    function castingDetailUrl(id) {
+      return `detalle-casting.html?id=${encodeURIComponent(id)}`;
+    }
+
+    function formatReputacion(rep) {
+      return `⭐ ${rep.estrellas.toFixed(1)} (${rep.resenas})`;
+    }
+
+    function formatUbicacion(ub) {
+      return `${ub.ciudad} · ${ub.sector}`;
+    }
+
+    function formatDisponibilidad(fechas) {
+      if (!fechas.length) return 'Consultar';
+      const fmt = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+      const sorted = [...fechas].sort();
+      if (sorted.length === 1) return fmt(sorted[0]);
+      const first = fmt(sorted[0]);
+      const last = fmt(sorted[sorted.length - 1]);
+      return sorted.length <= 2 ? sorted.map(fmt).join(' · ') : `${first} – ${last}`;
+    }
+
+    function matchesPriceRange(price, range) {
+      if (!range) return true;
+      if (range === 'low') return price <= 500;
+      if (range === 'mid') return price > 500 && price <= 900;
+      if (range === 'high') return price > 900;
+      return true;
+    }
+
+    function matchesCapacidad(cap, range) {
+      if (!range) return true;
+      return cap === range;
+    }
+
+    function matchesEdad(edad, range) {
+      if (!range) return true;
+      if (range === '18-25') return edad >= 18 && edad <= 25;
+      if (range === '26-35') return edad >= 26 && edad <= 35;
+      if (range === '36-50') return edad >= 36 && edad <= 50;
+      return true;
+    }
+
+    function matchesEstatura(h, range) {
+      if (!range) return true;
+      if (range === 'baja') return h <= 1.65;
+      if (range === 'media') return h > 1.65 && h <= 1.80;
+      if (range === 'alta') return h > 1.80;
+      return true;
+    }
+
+    function matchesGeo(ub) {
+      if (geoFilter.pais && ub.pais !== geoFilter.pais) return false;
+      if (geoFilter.ciudad && ub.ciudad !== geoFilter.ciudad) return false;
+      if (geoFilter.sector && ub.sector !== geoFilter.sector) return false;
+      return true;
+    }
+
+    function matchesDateAvailability(fechas) {
+      if (!dateFilter.start) return true;
+      if (!fechas || !fechas.length) return false;
+      const start = dateFilter.start;
+      const end = dateFilter.end || dateFilter.start;
+      return fechas.some((d) => d >= start && d <= end);
+    }
+
+    /** Opciones jerárquicas: país → ciudad (toda) → sector */
+    const DESTINATION_OPTIONS = (() => {
+      const list = [];
+      Object.entries(GEO_JERARQUIA).forEach(([pais, ciudades]) => {
+        list.push({
+          level: 'pais',
+          label: pais,
+          subtitle: 'Todo el país',
+          pais,
+          ciudad: '',
+          sector: '',
+          searchText: `${pais} todo pais region`.toLowerCase(),
+          sortOrder: 0,
+        });
+        Object.entries(ciudades).forEach(([ciudad, sectores]) => {
+          list.push({
+            level: 'ciudad',
+            label: ciudad,
+            subtitle: `${pais} · Toda la ciudad`,
+            pais,
+            ciudad,
+            sector: '',
+            searchText: `${pais} ${ciudad} toda ciudad region`.toLowerCase(),
+            sortOrder: 1,
+          });
+          sectores.forEach((sector) => {
+            list.push({
+              level: 'sector',
+              label: `${ciudad} — ${sector}`,
+              subtitle: pais,
+              pais,
+              ciudad,
+              sector,
+              searchText: `${pais} ${ciudad} ${sector} zona`.toLowerCase(),
+              sortOrder: 2,
+            });
+          });
+        });
+      });
+      return list.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.label.localeCompare(b.label, 'es');
+      });
+    })();
+
+    const DEST_LEVEL_LABELS = { pais: 'País', ciudad: 'Ciudad', sector: 'Zona' };
+
+    function getBaseFilteredLocaciones() {
+      return LOCACIONES.filter((loc) => {
+        if (!matchesGeo(loc.ubicacion)) return false;
+        if (!matchesDateAvailability(loc.disponibilidad)) return false;
+        if (!matchesPriceRange(loc.precioJornada, locFilters.precio)) return false;
+        if (locFilters.tipo && loc.tipo !== locFilters.tipo) return false;
+        if (!matchesCapacidad(loc.capacidad, locFilters.capacidad)) return false;
+        if (locFilters.mobiliario && loc.mobiliario !== locFilters.mobiliario) return false;
+        if (locFilters.parqueadero === 'si' && !loc.parqueadero) return false;
+        if (locFilters.parqueadero === 'no' && loc.parqueadero) return false;
+        return true;
+      });
+    }
+
+    function getBoundsFilteredLocaciones(baseList) {
+      if (!map) return baseList;
+      const bounds = map.getBounds();
+      return baseList.filter((loc) => bounds.contains([loc.lat, loc.lng]));
+    }
+
+    function getFilteredActores() {
+      const q = castSearch.toLowerCase();
+      return ACTORES.filter((a) => {
+        if (!matchesGeo(a.ubicacion)) return false;
+        if (castFilters.tipoActor && a.tipo !== castFilters.tipoActor) return false;
+        if (!matchesEdad(a.edad, castFilters.edad)) return false;
+        if (!matchesEstatura(a.estatura, castFilters.estatura)) return false;
+        if (castFilters.habilidades && !a.skills.includes(castFilters.habilidades)) return false;
+        if (q) {
+          const hay = `${a.nombre} ${TIPO_LABELS[a.tipo]} ${a.skills.map((s) => SKILL_LABELS[s]).join(' ')} ${a.ubicacion.sector}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function hasActiveLocFilters() {
+      return Object.values(locFilters).some((v) => v !== '');
+    }
+
+    function buildAssignBtnHtml(itemId, itemType) {
+      return `
+        <button
+          type="button"
+          class="assign-project-btn absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-zinc-950/85 text-zinc-200 shadow-lg backdrop-blur-sm hover:border-cyan-500/50 hover:text-cyan-400 transition-colors"
+          data-item-id="${escapeHtml(itemId)}"
+          data-item-type="${escapeHtml(itemType)}"
+          aria-label="Asignar a proyecto"
+          title="Asignar a proyecto"
+        >
+          <i data-lucide="folder-plus" class="h-4 w-4"></i>
+        </button>
+      `;
+    }
+
+    function buildPopupHtml(loc) {
+      const img = loc.imagenes[0];
+      return `
+        <div class="p-3">
+          <a href="${detailUrl(loc.id)}" class="block group/pop">
+            <img src="${img}" alt="${escapeHtml(loc.nombre)}" class="w-full h-20 object-cover rounded-lg mb-2" />
+            <p class="text-sm font-semibold text-white leading-snug group-hover/pop:text-cyan-400 transition-colors">${escapeHtml(loc.nombre)}</p>
+          </a>
+          <p class="text-[11px] text-amber-400 mt-0.5">${formatReputacion(loc.reputacion)}</p>
+          <p class="text-sm font-bold text-cyan-400 mt-1">${formatPrice(loc.precioJornada)} <span class="text-[10px] font-normal text-zinc-500">/ jornada</span></p>
+        </div>
+      `;
+    }
+
+    function buildLocCardHtml(loc, isActive) {
+      const activeCls = isActive ? 'border-cyan-500/50 ring-1 ring-cyan-500/30' : 'border-zinc-800';
+      return `
+        <article
+          data-loc-id="${loc.id}"
+          data-href="${detailUrl(loc.id)}"
+          class="catalog-card loc-card group relative flex flex-col overflow-hidden rounded-xl border ${activeCls} bg-zinc-900/50 cursor-pointer transition-all hover:border-zinc-700 hover:shadow-lg hover:shadow-cyan-500/5"
+          tabindex="0"
+          role="link"
+        >
+          <div class="relative overflow-hidden bg-zinc-800">
+            ${buildAssignBtnHtml(loc.id, 'locacion')}
+            <img src="${loc.imagenes[0]}" alt="${escapeHtml(loc.nombre)}" class="w-full aspect-square object-cover object-top rounded-t-lg transition-transform duration-300 group-hover:scale-[1.02]" loading="lazy" />
+          </div>
+          <div class="flex flex-1 flex-col p-3 space-y-1.5">
+            <h3 class="text-sm font-semibold text-white leading-snug line-clamp-2">${escapeHtml(loc.nombre)}</h3>
+            <p class="text-[11px] text-amber-400/90">${formatReputacion(loc.reputacion)}</p>
+            <p class="text-[11px] text-zinc-500 flex items-center gap-1">
+              <i data-lucide="map-pin" class="h-3 w-3 shrink-0"></i>
+              ${escapeHtml(formatUbicacion(loc.ubicacion))}
+            </p>
+            <p class="text-sm font-bold text-cyan-400">${formatPrice(loc.precioJornada)}<span class="text-[10px] font-normal text-zinc-500"> / jornada</span></p>
+            <span class="mt-auto inline-flex w-fit items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="calendar-check" class="h-3 w-3"></i>
+              ${escapeHtml(formatDisponibilidad(loc.disponibilidad))}
+            </span>
+          </div>
+        </article>
+      `;
+    }
+
+    function buildActorCardHtml(a) {
+      return `
+        <article
+          data-actor-id="${a.id}"
+          data-href="${castingDetailUrl(a.id)}"
+          class="catalog-card actor-card group relative flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/50 cursor-pointer transition-all hover:border-zinc-700 hover:shadow-lg hover:shadow-cyan-500/5"
+          tabindex="0"
+          role="link"
+        >
+          <div class="relative overflow-hidden bg-zinc-800">
+            ${buildAssignBtnHtml(a.id, 'casting')}
+            <img src="${a.imagen}" alt="${escapeHtml(a.nombre)}" class="w-full aspect-square object-cover object-top rounded-t-lg transition-transform duration-300 group-hover:scale-[1.02]" loading="lazy" />
+            <span class="absolute top-2 left-2 rounded-md bg-zinc-950/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-cyan-400 backdrop-blur-sm pointer-events-none">${TIPO_LABELS[a.tipo]}</span>
+          </div>
+          <div class="flex flex-1 flex-col p-3 space-y-1.5">
+            <h3 class="text-sm font-semibold text-white leading-snug">${escapeHtml(a.nombre)}</h3>
+            <p class="text-[11px] text-zinc-500">${a.edad} años · ${a.estatura.toFixed(2)} m</p>
+            <p class="text-[11px] text-zinc-500 flex items-center gap-1">
+              <i data-lucide="map-pin" class="h-3 w-3 shrink-0"></i>
+              ${escapeHtml(formatUbicacion(a.ubicacion))}
+            </p>
+            <div class="flex flex-wrap gap-1 pt-0.5">
+              ${a.skills.map((s) => `<span class="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400">${SKILL_LABELS[s] || s}</span>`).join('')}
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    /* ============================================================
+       NAVEGACIÓN SIDEBAR
+       ============================================================ */
+    function initNavActive() {
+      const page = document.body.dataset.page;
+      document.querySelectorAll('.nav-link').forEach((link) => {
+        const isActive = link.dataset.nav === page;
+        link.classList.toggle('text-cyan-400', isActive);
+        link.classList.toggle('bg-cyan-500/10', isActive);
+        link.classList.toggle('border', isActive);
+        link.classList.toggle('border-cyan-500/20', isActive);
+        link.classList.toggle('text-zinc-400', !isActive);
+        if (!isActive) link.classList.add('hover:bg-zinc-800/60', 'hover:text-zinc-100');
+      });
+    }
+
+    function bindSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      const close = () => {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+      };
+      const open = () => {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+      };
+      document.getElementById('menu-toggle').addEventListener('click', open);
+      overlay.addEventListener('click', close);
+      window.addEventListener('resize', () => { if (window.innerWidth >= 1024) close(); });
+    }
+
+    /* ============================================================
+       BUSCADOR COMPACTO — Destino + Fechas
+       ============================================================ */
+    function closeAllSearchPickers() {
+      document.querySelectorAll('.search-picker').forEach((w) => {
+        w.classList.remove('open');
+        const btn = w.querySelector('button[aria-expanded]');
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    function filterDestinationOptions(query) {
+      const q = query.toLowerCase().trim();
+      if (!q) return DESTINATION_OPTIONS;
+      return DESTINATION_OPTIONS.filter(
+        (o) =>
+          o.searchText.includes(q) ||
+          o.label.toLowerCase().includes(q) ||
+          (o.subtitle && o.subtitle.toLowerCase().includes(q))
+      );
+    }
+
+    function buildDestSuggestionButton(o) {
+      const displayLabel =
+        o.level === 'ciudad' ? `${o.label} (toda la ciudad)` : o.label;
+      return `
+        <li>
+          <button
+            type="button"
+            class="dest-suggestion w-full px-4 py-2.5 text-left hover:bg-zinc-800 transition-colors"
+            data-pais="${escapeHtml(o.pais)}"
+            data-ciudad="${escapeHtml(o.ciudad)}"
+            data-sector="${escapeHtml(o.sector)}"
+            data-label="${escapeHtml(displayLabel)}"
+            data-level="${o.level}"
+          >
+            <span class="flex items-center justify-between gap-2">
+              <span class="font-medium text-sm text-zinc-200">${escapeHtml(displayLabel)}</span>
+              <span class="dest-level-badge shrink-0">${DEST_LEVEL_LABELS[o.level]}</span>
+            </span>
+            <span class="block text-[10px] text-zinc-500 mt-0.5">${escapeHtml(o.subtitle)}</span>
+          </button>
+        </li>
+      `;
+    }
+
+    function renderDestGroup(title, items) {
+      if (!items.length) return '';
+      return `
+        <li class="dest-group-label" aria-hidden="true">${escapeHtml(title)}</li>
+        ${items.map((o) => buildDestSuggestionButton(o)).join('')}
+      `;
+    }
+
+    function renderDestSuggestions(filter = '') {
+      const ul = document.getElementById('dest-suggestions');
+      const q = filter.trim();
+      const items = filterDestinationOptions(q);
+
+      if (items.length === 0) {
+        ul.innerHTML = '<li class="px-4 py-3 text-xs text-zinc-500">Sin resultados para esta búsqueda</li>';
+        return;
+      }
+
+      if (!q) {
+        const paises = items.filter((o) => o.level === 'pais');
+        const ciudades = items.filter((o) => o.level === 'ciudad');
+        const sectores = items.filter((o) => o.level === 'sector');
+        ul.innerHTML =
+          renderDestGroup('Países', paises) +
+          renderDestGroup('Ciudades', ciudades) +
+          renderDestGroup('Zonas y sectores', sectores);
+      } else {
+        ul.innerHTML = items.map((o) => buildDestSuggestionButton(o)).join('');
+      }
+    }
+
+    function applyGeoFilter({ pais, ciudad, sector, label }) {
+      geoFilter = {
+        pais: pais || '',
+        ciudad: ciudad || '',
+        sector: sector || '',
+      };
+      document.getElementById('dest-search-value').textContent = label;
+      document.getElementById('dest-search-value').classList.remove('text-zinc-300');
+      document.getElementById('dest-search-value').classList.add('text-white');
+      destSearchQuery = '';
+      document.getElementById('dest-search-input').value = '';
+      closeAllSearchPickers();
+      updateSearchClearAll();
+      onGeoOrFilterChange();
+    }
+
+    function selectDestinationFromButton(btn) {
+      applyGeoFilter({
+        pais: btn.dataset.pais,
+        ciudad: btn.dataset.ciudad || '',
+        sector: btn.dataset.sector || '',
+        label: btn.dataset.label,
+      });
+    }
+
+    function clearDestination() {
+      geoFilter = { pais: '', ciudad: '', sector: '' };
+      document.getElementById('dest-search-value').textContent = 'Buscar destino';
+      document.getElementById('dest-search-value').classList.add('text-zinc-300');
+      document.getElementById('dest-search-value').classList.remove('text-white');
+    }
+
+    function formatDateLabel(iso) {
+      return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    }
+
+    function updateDateDisplay() {
+      const el = document.getElementById('date-search-value');
+      if (!dateFilter.start) {
+        el.textContent = 'Añadir fechas';
+        el.classList.add('text-zinc-300');
+        el.classList.remove('text-white');
+        return;
+      }
+      const end = dateFilter.end || dateFilter.start;
+      el.textContent = dateFilter.end && dateFilter.end !== dateFilter.start
+        ? `${formatDateLabel(dateFilter.start)} – ${formatDateLabel(end)}`
+        : formatDateLabel(dateFilter.start);
+      el.classList.remove('text-zinc-300');
+      el.classList.add('text-white');
+    }
+
+    function updateSearchClearAll() {
+      const active = geoFilter.pais || geoFilter.ciudad || geoFilter.sector || dateFilter.start;
+      document.getElementById('search-clear-all').classList.toggle('hidden', !active);
+    }
+
+    function initCompactSearch() {
+      const destWrap = document.getElementById('dest-search-wrap');
+      const dateWrap = document.getElementById('date-search-wrap');
+
+      document.getElementById('dest-search-trigger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = destWrap.classList.toggle('open');
+        dateWrap.classList.remove('open');
+        document.getElementById('dest-search-trigger').setAttribute('aria-expanded', String(open));
+        if (open) {
+          renderDestSuggestions(destSearchQuery);
+          document.getElementById('dest-search-input').focus();
+        }
+      });
+
+      document.getElementById('dest-search-input').addEventListener('input', (e) => {
+        destSearchQuery = e.target.value;
+        renderDestSuggestions(destSearchQuery);
+      });
+
+      document.getElementById('dest-suggestions').addEventListener('click', (e) => {
+        const btn = e.target.closest('.dest-suggestion');
+        if (!btn) return;
+        selectDestinationFromButton(btn);
+      });
+
+      document.getElementById('date-search-trigger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dateWrap.classList.toggle('open');
+        destWrap.classList.remove('open');
+        document.getElementById('dest-search-trigger').setAttribute('aria-expanded', 'false');
+        document.getElementById('date-search-trigger').setAttribute('aria-expanded', String(open));
+      });
+
+      document.getElementById('date-apply').addEventListener('click', () => {
+        const from = document.getElementById('date-from').value;
+        const to = document.getElementById('date-to').value;
+        if (!from) {
+          dateFilter = { start: '', end: '' };
+        } else {
+          dateFilter = { start: from, end: to && to >= from ? to : from };
+        }
+        updateDateDisplay();
+        closeAllSearchPickers();
+        updateSearchClearAll();
+        onGeoOrFilterChange();
+      });
+
+      document.getElementById('date-clear').addEventListener('click', () => {
+        dateFilter = { start: '', end: '' };
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        updateDateDisplay();
+        updateSearchClearAll();
+        onGeoOrFilterChange();
+      });
+
+      document.getElementById('search-clear-all').addEventListener('click', () => {
+        clearDestination();
+        dateFilter = { start: '', end: '' };
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        updateDateDisplay();
+        updateSearchClearAll();
+        onGeoOrFilterChange();
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-picker')) closeAllSearchPickers();
+      });
+
+      renderDestSuggestions();
+      updateDateDisplay();
+      updateSearchClearAll();
+    }
+
+    function onGeoOrFilterChange() {
+      if (activeTab === 'locaciones') {
+        refreshLocacionesFull();
+      } else {
+        renderCasting();
+      }
+    }
+
+    /* ============================================================
+       PESTAÑAS
+       ============================================================ */
+    function setActiveTab(tab) {
+      activeTab = tab;
+      const isLoc = tab === 'locaciones';
+
+      document.getElementById('tab-locaciones').classList.toggle('bg-cyan-500/15', isLoc);
+      document.getElementById('tab-locaciones').classList.toggle('text-cyan-400', isLoc);
+      document.getElementById('tab-locaciones').classList.toggle('shadow-sm', isLoc);
+      document.getElementById('tab-locaciones').classList.toggle('text-zinc-500', !isLoc);
+      document.getElementById('tab-locaciones').setAttribute('aria-selected', String(isLoc));
+
+      document.getElementById('tab-casting').classList.toggle('bg-cyan-500/15', !isLoc);
+      document.getElementById('tab-casting').classList.toggle('text-cyan-400', !isLoc);
+      document.getElementById('tab-casting').classList.toggle('shadow-sm', !isLoc);
+      document.getElementById('tab-casting').classList.toggle('text-zinc-500', isLoc);
+      document.getElementById('tab-casting').setAttribute('aria-selected', String(!isLoc));
+
+      document.getElementById('loc-filters-bar').classList.toggle('hidden', !isLoc);
+      document.getElementById('cast-filters-bar').classList.toggle('hidden', isLoc);
+      document.getElementById('view-locaciones').classList.toggle('hidden', !isLoc);
+      document.getElementById('view-locaciones').classList.toggle('flex', isLoc);
+      document.getElementById('view-casting').classList.toggle('hidden', isLoc);
+      document.getElementById('map-panel').classList.toggle('hidden', !isLoc);
+      document.getElementById('map-panel').classList.toggle('lg:block', isLoc);
+
+      if (isLoc) {
+        requestAnimationFrame(() => {
+          if (map) {
+            map.invalidateSize();
+            renderLocacionesGrid();
+          } else {
+            initMap();
+          }
+        });
+      } else {
+        renderCasting();
+      }
+    }
+
+    function bindTabs() {
+      document.querySelectorAll('.catalog-tab').forEach((btn) => {
+        btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+      });
+    }
+
+    /* ============================================================
+       FILTROS DROPDOWN
+       ============================================================ */
+    function bindFilterDropdowns() {
+      document.querySelectorAll('.filter-dropdown').forEach((dropdown) => {
+        const key = dropdown.dataset.filter;
+        const trigger = dropdown.querySelector('.filter-trigger');
+
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const wasOpen = dropdown.classList.contains('open');
+          document.querySelectorAll('.filter-dropdown').forEach((d) => d.classList.remove('open'));
+          if (!wasOpen) dropdown.classList.add('open');
+        });
+
+        dropdown.querySelectorAll('.filter-option').forEach((opt) => {
+          opt.addEventListener('click', () => {
+            const value = opt.dataset.value;
+            const label = opt.textContent.trim();
+            const labelEl = dropdown.querySelector('.filter-label');
+            const defaultLabel = labelEl.dataset.default || labelEl.textContent.trim();
+
+            if (activeTab === 'locaciones' && key in locFilters) {
+              locFilters[key] = value;
+              labelEl.textContent = value ? label : defaultLabel;
+              refreshLocacionesFull();
+            } else if (activeTab === 'casting' && key in castFilters) {
+              castFilters[key] = value;
+              labelEl.textContent = value ? label : defaultLabel;
+              renderCasting();
+            }
+
+            dropdown.classList.remove('open');
+            updateClearButton();
+          });
+        });
+      });
+
+      document.addEventListener('click', () => {
+        document.querySelectorAll('.filter-dropdown').forEach((d) => d.classList.remove('open'));
+        closeAllSearchPickers();
+      });
+
+      document.getElementById('clear-loc-filters').addEventListener('click', () => {
+        locFilters = { ...FILTER_DEFAULTS.loc };
+        document.querySelectorAll('#loc-filters-bar .filter-dropdown').forEach((d) => {
+          const def = d.querySelector('.filter-label').dataset.default;
+          if (def) d.querySelector('.filter-label').textContent = def;
+        });
+        refreshLocacionesFull();
+        updateClearButton();
+      });
+
+      document.getElementById('cast-search').addEventListener('input', (e) => {
+        castSearch = e.target.value.trim();
+        renderCasting();
+      });
+    }
+
+    function updateClearButton() {
+      document.getElementById('clear-loc-filters').classList.toggle('hidden', !hasActiveLocFilters());
+    }
+
+    /* ============================================================
+       MAPA LEAFLET + SINCRONIZACIÓN CON GRID
+       ============================================================ */
+    function initMap() {
+      if (map) return;
+
+      map = L.map('map', { zoomControl: true }).setView([-2.1700, -79.8900], 12);
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(map);
+
+      map.on('moveend', () => {
+        if (suppressMoveend) return;
+        renderLocacionesGrid();
+      });
+
+      mapInitialized = true;
+      refreshLocacionesFull(true);
+    }
+
+    function updateMapMarkers(baseList, fitBounds = false) {
+      if (!map) return;
+
+      Object.values(markers).forEach((m) => map.removeLayer(m));
+      markers = {};
+
+      baseList.forEach((loc) => {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div class="price-pin${activeLocId === loc.id ? ' active' : ''}" data-pin-id="${loc.id}">${formatPrice(loc.precioJornada)}</div>`,
+          iconSize: [80, 28],
+          iconAnchor: [40, 14],
+        });
+
+        const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map);
+        marker.bindPopup(buildPopupHtml(loc), { maxWidth: 240, className: 'loc-popup' });
+
+        marker.on('click', () => {
+          activeLocId = loc.id;
+          updatePinActiveStates();
+          marker.openPopup();
+        });
+
+        markers[loc.id] = marker;
+      });
+
+      if (fitBounds && baseList.length > 0) {
+        suppressMoveend = true;
+        const bounds = L.latLngBounds(baseList.map((l) => [l.lat, l.lng]));
+        map.fitBounds(bounds, { padding: [48, 48], maxZoom: 13 });
+        setTimeout(() => { suppressMoveend = false; renderLocacionesGrid(); }, 350);
+      }
+    }
+
+    function updatePinActiveStates() {
+      Object.entries(markers).forEach(([id, marker]) => {
+        const el = marker.getElement();
+        if (el) el.querySelector('.price-pin')?.classList.toggle('active', id === activeLocId);
+      });
+    }
+
+    function refreshLocacionesFull(fitBounds = false) {
+      const base = getBaseFilteredLocaciones();
+      updateMapMarkers(base, fitBounds);
+      if (!fitBounds) renderLocacionesGrid();
+      updateClearButton();
+    }
+
+    function renderLocacionesGrid() {
+      const base = getBaseFilteredLocaciones();
+      const visible = getBoundsFilteredLocaciones(base);
+      const grid = document.getElementById('locaciones-grid');
+      const empty = document.getElementById('locaciones-empty');
+      const countEl = document.getElementById('loc-results-count');
+
+      countEl.textContent = base.length === 0
+        ? '0 locaciones con los filtros aplicados'
+        : `${visible.length} visible${visible.length !== 1 ? 's' : ''} en el mapa · ${base.length} con filtros activos`;
+
+      if (visible.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        empty.textContent = base.length === 0
+          ? 'Ninguna locación coincide con los filtros.'
+          : 'Ninguna locación en el área visible del mapa. Arrastra o haz zoom para explorar.';
+        lucide.createIcons();
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = visible.map((loc) => buildLocCardHtml(loc, loc.id === activeLocId)).join('');
+
+      grid.querySelectorAll('.loc-card').forEach((card) => {
+        card.addEventListener('mouseenter', () => {
+          activeLocId = card.dataset.locId;
+          updatePinActiveStates();
+        });
+      });
+
+      lucide.createIcons();
+    }
+
+    function bindCardNavigation(gridId, cardClass) {
+      const grid = document.getElementById(gridId);
+      grid.addEventListener('click', (e) => {
+        if (e.target.closest('.assign-project-btn') || e.target.closest('#assign-menu')) return;
+        const card = e.target.closest(cardClass);
+        if (card?.dataset.href) {
+          sessionStorage.setItem('ff_catalog_view', activeTab);
+          window.location.href = card.dataset.href;
+        }
+      });
+      grid.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        const card = e.target.closest(cardClass);
+        if (!card || e.target.closest('.assign-project-btn')) return;
+        e.preventDefault();
+        if (card.dataset.href) {
+          sessionStorage.setItem('ff_catalog_view', activeTab);
+          window.location.href = card.dataset.href;
+        }
+      });
+    }
+
+    function bindLocCardNavigation() {
+      bindCardNavigation('locaciones-grid', '.loc-card');
+    }
+
+    function bindActorCardNavigation() {
+      bindCardNavigation('casting-grid', '.actor-card');
+    }
+
+    /* ============================================================
+       CASTING — Grid compacto simétrico
+       ============================================================ */
+    function renderCasting() {
+      const list = getFilteredActores();
+      const grid = document.getElementById('casting-grid');
+      const empty = document.getElementById('casting-empty');
+
+      document.getElementById('cast-results-count').textContent =
+        `${list.length} perfil${list.length !== 1 ? 'es' : ''} encontrado${list.length !== 1 ? 's' : ''}`;
+
+      if (list.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      grid.innerHTML = list.map((a) => buildActorCardHtml(a)).join('');
+      lucide.createIcons();
+    }
+
+    /* ============================================================
+       ASIGNAR A PROYECTO — Menú flotante + toast
+       ============================================================ */
+    function closeAssignMenu() {
+      document.getElementById('assign-menu').classList.add('hidden');
+      assignMenuContext = null;
+    }
+
+    function populateAssignMenu() {
+      const menu = document.getElementById('assign-menu');
+      const { STATUS_META } = FrameFlowDB;
+      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      menu.innerHTML = `
+        <button type="button" data-project-id="new" class="assign-project-option flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-cyan-400 hover:bg-zinc-800">
+          <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
+        </button>
+        <div class="my-1 border-t border-zinc-800"></div>
+        ${projects.map((p) => `
+          <button type="button" data-project-id="${escapeHtml(p.id)}" class="assign-project-option w-full px-4 py-2.5 text-left hover:bg-zinc-800">
+            <span class="text-sm text-zinc-200">${escapeHtml(p.name)}</span>
+            <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || p.status)}</span>
+          </button>
+        `).join('')}
+      `;
+      lucide.createIcons();
+    }
+
+    function openAssignMenu(anchorBtn) {
+      const menu = document.getElementById('assign-menu');
+      const rect = anchorBtn.getBoundingClientRect();
+      assignMenuContext = { itemId: anchorBtn.dataset.itemId, itemType: anchorBtn.dataset.itemType };
+      populateAssignMenu();
+      menu.classList.remove('hidden');
+      const menuW = 240;
+      let left = rect.right - menuW;
+      if (left < 8) left = 8;
+      menu.style.top = `${rect.bottom + 6}px`;
+      menu.style.left = `${left}px`;
+    }
+
+    function showCatalogToast() {
+      const toast = document.getElementById('catalog-toast');
+      toast.classList.remove('hidden');
+      lucide.createIcons();
+      clearTimeout(showCatalogToast._t);
+      showCatalogToast._t = setTimeout(() => toast.classList.add('hidden'), 2800);
+    }
+
+    function bindAssignProjects() {
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.assign-project-btn');
+        if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const menu = document.getElementById('assign-menu');
+          if (!menu.classList.contains('hidden') && assignMenuContext?.itemId === btn.dataset.itemId) closeAssignMenu();
+          else openAssignMenu(btn);
+          return;
+        }
+        if (!e.target.closest('#assign-menu')) closeAssignMenu();
+      });
+
+      document.getElementById('assign-menu').addEventListener('click', (e) => {
+        const opt = e.target.closest('.assign-project-option');
+        if (!opt || !assignMenuContext) return;
+        e.stopPropagation();
+        const projectId = opt.dataset.projectId;
+        if (projectId === 'new') {
+          window.location.href = 'index.html';
+          return;
+        }
+        const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'actor';
+        FrameFlowDB.assignResource(projectId, resType, assignMenuContext.itemId);
+        showCatalogToast();
+        closeAssignMenu();
+      });
+
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAssignMenu(); });
+    }
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    document.querySelectorAll('#loc-filters-bar .filter-label').forEach((el) => {
+      el.dataset.default = el.textContent.trim();
+    });
+    document.querySelectorAll('#cast-filters-bar .filter-label').forEach((el) => {
+      el.dataset.default = el.textContent.trim();
+    });
+
+    FrameFlowSidebar.mount('sidebar-mount', 'catalogo');
+    initCompactSearch();
+    bindAssignProjects();
+    bindLocCardNavigation();
+    bindActorCardNavigation();
+    bindTabs();
+    bindFilterDropdowns();
+    const urlVista = new URLSearchParams(location.search).get('vista') || new URLSearchParams(location.search).get('view') || 'locaciones';
+    setActiveTab(urlVista === 'casting' ? 'casting' : 'locaciones');
+    lucide.createIcons();
+  </script>
+</body>
+</html>

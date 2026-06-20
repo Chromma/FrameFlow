@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detalle de Casting | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } } };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .booking-sticky { position: sticky; top: 88px; }
+    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 8px; cursor: default; }
+    .cal-day.busy { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.25); }
+    .cal-day.free { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.2); }
+    .cal-day.neutral { color: #a1a1aa; }
+    .cal-day.selected { ring: 2px solid #22d3ee; background: rgba(34, 211, 238, 0.15); color: #fff; }
+    .cal-day.other-month { opacity: 0.35; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .toast-show { animation: fadeIn 0.2s ease-out; }
+  </style>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="catalogo">
+
+  <div class="flex h-full min-h-screen">
+    <div id="sidebar-mount" class="contents"></div>
+
+    <main class="flex flex-1 flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div class="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300" aria-label="Menú">
+            <i data-lucide="menu" class="h-5 w-5"></i>
+          </button>
+          <a id="back-catalog" href="catalogo.html?vista=casting" class="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-cyan-400 transition-colors">
+            <i data-lucide="arrow-left" class="h-4 w-4"></i> Volver al catálogo
+          </a>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8">
+          <header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 id="actor-name" class="text-2xl font-semibold text-white sm:text-3xl">Mateo Duarte</h1>
+              <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-400">
+                <span id="actor-age" class="inline-flex items-center gap-1.5 font-medium text-zinc-200">
+                  <i data-lucide="cake" class="h-4 w-4 text-cyan-400"></i> 34 años
+                </span>
+                <span id="actor-height" class="inline-flex items-center gap-1.5">
+                  <i data-lucide="ruler" class="h-4 w-4 text-zinc-500"></i> 1.82 m
+                </span>
+                <span id="actor-city" class="inline-flex items-center gap-1.5">
+                  <i data-lucide="map-pin" class="h-4 w-4 text-zinc-500"></i> Guayaquil, Ecuador
+                </span>
+              </div>
+              <div id="actor-disciplines" class="mt-3 flex flex-wrap gap-2"></div>
+            </div>
+            <div class="relative shrink-0" id="header-assign-wrap">
+              <button type="button" id="btn-assign-toggle" class="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/80 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:border-cyan-500/40 hover:text-cyan-400 transition-colors">
+                <i data-lucide="folder-plus" class="h-4 w-4"></i>
+                Vincular a proyecto
+              </button>
+              <div id="header-assign-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl"></div>
+            </div>
+          </header>
+
+          <div class="flex flex-col gap-10 lg:flex-row lg:gap-10">
+            <div class="min-w-0 flex-[1.5] lg:max-w-[60%] space-y-8">
+              <section aria-label="Videoreel">
+                <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <i data-lucide="play-circle" class="h-5 w-5 text-cyan-400"></i> Videoreel
+                </h2>
+                <div id="videoreel" class="relative aspect-video overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
+                  <img id="reel-poster" src="" alt="" class="absolute inset-0 h-full w-full object-cover opacity-60" />
+                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/20 to-transparent"></div>
+                  <button type="button" id="btn-play-reel" class="absolute left-1/2 top-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500/90 text-zinc-950 shadow-xl shadow-cyan-500/30 hover:scale-105 transition-transform" aria-label="Reproducir videoreel">
+                    <i data-lucide="play" class="h-8 w-8 ml-1"></i>
+                  </button>
+                  <p class="absolute bottom-4 left-4 text-xs font-medium text-zinc-300">Showreel 2025 · HD</p>
+                </div>
+              </section>
+
+              <section aria-label="Composite">
+                <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                  <i data-lucide="layout-grid" class="h-5 w-5 text-cyan-400"></i> Composite
+                </h2>
+                <div id="composite-grid" class="grid grid-cols-2 gap-3"></div>
+              </section>
+
+              <section>
+                <h2 class="text-lg font-semibold text-white mb-4">Habilidades técnicas y acentos</h2>
+                <div id="actor-skills" class="grid gap-3 sm:grid-cols-2"></div>
+              </section>
+
+              <section>
+                <h2 class="text-lg font-semibold text-white mb-4">Reseñas de producción</h2>
+                <div id="actor-reviews" class="rounded-xl border border-zinc-800 bg-zinc-900/30 divide-y divide-zinc-800/80"></div>
+              </section>
+            </div>
+
+            <aside class="lg:w-[38%] lg:shrink-0">
+              <div class="booking-sticky rounded-2xl border border-zinc-700/80 bg-zinc-900/60 p-5 shadow-2xl shadow-black/30">
+                <h2 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                  <i data-lucide="calendar-days" class="h-4 w-4 text-cyan-400"></i> Disponibilidad
+                </h2>
+                <div class="flex items-center justify-between mb-3">
+                  <button type="button" id="cal-prev" class="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-left" class="h-4 w-4"></i></button>
+                  <span id="cal-month-label" class="text-sm font-semibold text-white capitalize"></span>
+                  <button type="button" id="cal-next" class="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-right" class="h-4 w-4"></i></button>
+                </div>
+                <div id="cal-weekdays" class="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-zinc-500 mb-1"></div>
+                <div id="cal-days" class="grid grid-cols-7 gap-1 mb-4"></div>
+                <div class="flex gap-3 text-[10px] text-zinc-500 mb-5">
+                  <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500/60"></span> Libre</span>
+                  <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-red-500/60"></span> En producción</span>
+                </div>
+
+                <form id="casting-form" class="space-y-3 border-t border-zinc-800 pt-5">
+                  <div class="grid grid-cols-2 gap-2 rounded-xl border border-zinc-700 overflow-hidden">
+                    <div class="border-r border-zinc-700 p-3">
+                      <label for="rodaje-desde" class="block text-[10px] font-semibold uppercase text-zinc-500">Rodaje desde</label>
+                      <input id="rodaje-desde" type="date" class="mt-1 w-full bg-transparent text-sm [color-scheme:dark] focus:outline-none" />
+                    </div>
+                    <div class="p-3">
+                      <label for="rodaje-hasta" class="block text-[10px] font-semibold uppercase text-zinc-500">Rodaje hasta</label>
+                      <input id="rodaje-hasta" type="date" class="mt-1 w-full bg-transparent text-sm [color-scheme:dark] focus:outline-none" />
+                    </div>
+                  </div>
+                  <div class="rounded-xl border border-zinc-700 p-3">
+                    <label for="rol-personaje" class="block text-[10px] font-semibold uppercase text-zinc-500">Rol / Personaje</label>
+                    <select id="rol-personaje" class="mt-1 w-full bg-transparent text-sm focus:outline-none cursor-pointer">
+                      <option value="">Seleccionar rol...</option>
+                      <option value="protagonista">Protagonista</option>
+                      <option value="antagonista">Antagonista</option>
+                      <option value="secundario">Secundario</option>
+                      <option value="cameo">Cameo / Especial</option>
+                      <option value="voz">Voz en off</option>
+                    </select>
+                  </div>
+                  <div class="rounded-xl border border-zinc-700 p-3">
+                    <label for="proyecto-destino" class="block text-[10px] font-semibold uppercase text-zinc-500">Proyecto activo</label>
+                    <select id="proyecto-destino" class="mt-1 w-full bg-transparent text-sm focus:outline-none cursor-pointer"></select>
+                  </div>
+                  <button type="submit" class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+                    Vincular a Proyecto / Convocar a Casting
+                  </button>
+                </form>
+                <p class="mt-3 text-center text-[10px] text-zinc-500">Sin exposición de datos de contacto directo.</p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="toast" class="toast-show fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900 px-4 py-3 text-sm text-emerald-400 shadow-2xl" role="status"></div>
+
+  <script src="db.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    const { STATUS_META } = FrameFlowDB;
+    const ACTORES = [
+      {
+        id: 'a1', nombre: 'Valentina Ríos', edad: 28, estatura: 1.68,
+        ubicacion: { ciudad: 'Guayaquil', pais: 'Ecuador' },
+        disciplinas: ['Cine', 'Teatro'],
+        imagen: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=1200&h=675&fit=crop&crop=faces',
+        composite: [
+          { src: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=500&h=500&fit=crop&crop=faces', label: 'Plano medio' },
+          { src: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&h=500&fit=crop&crop=faces', label: 'Perfil izquierdo' },
+          { src: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=500&h=500&fit=crop&crop=faces', label: 'Perfil derecho' },
+          { src: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=500&h=500&fit=crop', label: 'Plano entero' },
+        ],
+        habilidades: [
+          { icon: 'car', text: 'Maneja vehículos' }, { icon: 'music', text: 'Danza contemporánea' },
+          { icon: 'mic', text: 'Acento neutro latino' }, { icon: 'languages', text: 'Inglés fluido' },
+        ],
+        resenas: [
+          { autor: 'Director Ana P.', texto: 'Gran química en cámara y dominio del blocking en espacios reducidos.' },
+        ],
+        diasOcupados: ['2026-06-08', '2026-06-09', '2026-06-14', '2026-06-15', '2026-06-22'],
+      },
+      {
+        id: 'a2', nombre: 'Mateo Duarte', edad: 34, estatura: 1.82,
+        ubicacion: { ciudad: 'Guayaquil', pais: 'Ecuador' },
+        disciplinas: ['Cine', 'Teatro', 'Actor de voz'],
+        imagen: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=675&fit=crop&crop=faces',
+        composite: [
+          { src: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&h=500&fit=crop&crop=faces', label: 'Plano medio' },
+          { src: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=500&fit=crop&crop=faces', label: 'Perfil izquierdo' },
+          { src: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=500&h=500&fit=crop&crop=faces', label: 'Perfil derecho' },
+          { src: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=500&h=500&fit=crop', label: 'Plano entero' },
+        ],
+        habilidades: [
+          { icon: 'car', text: 'Maneja vehículos' }, { icon: 'swords', text: 'Artes marciales' },
+          { icon: 'mic', text: 'Acento neutro' }, { icon: 'languages', text: 'Inglés fluido' },
+          { icon: 'shield', text: 'Manejo de armas de fogueo' },
+        ],
+        resenas: [
+          { autor: 'Productora Elena V.', texto: 'Excelente puntualidad y manejo de guion en jornadas largas.' },
+          { autor: 'Director Marcos G.', texto: 'Versátil en teatro y cámara; ideal para personajes con carga dramática.' },
+        ],
+        diasOcupados: ['2026-06-10', '2026-06-11', '2026-06-12', '2026-06-18', '2026-06-19', '2026-06-20'],
+      },
+      {
+        id: 'a3', nombre: 'Lucía Navarro', edad: 24, estatura: 1.62,
+        ubicacion: { ciudad: 'Guayaquil', pais: 'Ecuador' },
+        disciplinas: ['Actor de voz', 'Teatro'],
+        imagen: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=1200&h=675&fit=crop&crop=faces',
+        composite: [
+          { src: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=500&h=500&fit=crop&crop=faces', label: 'Plano medio' },
+          { src: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&h=500&fit=crop&crop=faces', label: 'Perfil izquierdo' },
+          { src: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=500&h=500&fit=crop&crop=faces', label: 'Perfil derecho' },
+          { src: 'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=500&h=500&fit=crop', label: 'Plano entero' },
+        ],
+        habilidades: [
+          { icon: 'mic', text: 'Locución profesional' }, { icon: 'music', text: 'Canto y musicalización' },
+          { icon: 'languages', text: 'Inglés y portugués' }, { icon: 'mic', text: 'Acento neutro / rioplatense' },
+        ],
+        resenas: [{ autor: 'Estudio Dubbing+', texto: 'Tiempos de entrega impecables en sesiones de ADR.' }],
+        diasOcupados: ['2026-06-07', '2026-06-13', '2026-06-16'],
+      },
+      {
+        id: 'a4', nombre: 'Diego Salinas', edad: 41, estatura: 1.78,
+        ubicacion: { ciudad: 'Guayaquil', pais: 'Ecuador' },
+        disciplinas: ['Cine', 'Teatro'],
+        imagen: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=1200&h=675&fit=crop&crop=faces',
+        composite: [
+          { src: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&h=500&fit=crop&crop=faces', label: 'Plano medio' },
+          { src: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=500&h=500&fit=crop&crop=faces', label: 'Perfil izquierdo' },
+          { src: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=500&h=500&fit=crop&crop=faces', label: 'Perfil derecho' },
+          { src: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=500&h=500&fit=crop', label: 'Plano entero' },
+        ],
+        habilidades: [
+          { icon: 'swords', text: 'Artes marciales' }, { icon: 'car', text: 'Maneja vehículos' },
+          { icon: 'shield', text: 'Manejo de armas de fogueo' }, { icon: 'mic', text: 'Acento neutro' },
+        ],
+        resenas: [{ autor: '1er AD Carolina T.', texto: 'Profesional en sets de acción; gran stamina en exteriores.' }],
+        diasOcupados: ['2026-06-09', '2026-06-10', '2026-06-17'],
+      },
+    ];
+
+    const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
+    let calView = new Date(2026, 5, 1);
+    let calRangeState = { anchor: null, end: null };
+    let currentActor = null;
+
+    function escapeHtml(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
+    function getActor() {
+      const id = new URLSearchParams(location.search).get('id');
+      return ACTORES.find((a) => a.id === id) || ACTORES.find((a) => a.id === 'a2');
+    }
+
+    function renderAssignMenus(containerId, actorId) {
+      const el = document.getElementById(containerId);
+      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      el.innerHTML = `
+        <button type="button" class="assign-opt w-full px-4 py-2.5 text-left text-sm text-cyan-400 hover:bg-zinc-800 flex items-center gap-2" data-project-id="new">
+          <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
+        </button>
+        <div class="my-1 border-t border-zinc-800"></div>
+        ${projects.map((p) => `
+          <button type="button" class="assign-opt w-full px-4 py-2.5 text-left hover:bg-zinc-800" data-project-id="${p.id}">
+            <span class="text-sm text-zinc-200">${escapeHtml(p.name)}</span>
+            <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || '')}</span>
+          </button>
+        `).join('')}
+      `;
+      el.querySelectorAll('.assign-opt').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const pid = btn.dataset.projectId;
+          if (pid === 'new') { window.location.href = 'index.html'; return; }
+          FrameFlowDB.assignResource(pid, 'actor', actorId);
+          const sel = document.getElementById('proyecto-destino');
+          if (sel) sel.value = pid;
+          showToast('Añadido con éxito al proyecto');
+          document.getElementById('header-assign-menu').classList.add('hidden');
+        });
+      });
+      lucide.createIcons();
+    }
+
+    function fillProjectSelect() {
+      const sel = document.getElementById('proyecto-destino');
+      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      sel.innerHTML = '<option value="">Seleccionar proyecto...</option>' +
+        projects.map((p) =>
+          `<option value="${p.id}">${escapeHtml(p.name)} (${STATUS_META[p.status]?.label || ''})</option>`
+        ).join('');
+    }
+
+    function renderActor(a) {
+      currentActor = a;
+      document.title = `${a.nombre} | Casting | FrameFlow`;
+      document.getElementById('actor-name').textContent = a.nombre;
+      document.getElementById('actor-age').innerHTML = `<i data-lucide="cake" class="h-4 w-4 text-cyan-400"></i> ${a.edad} años`;
+      document.getElementById('actor-height').innerHTML = `<i data-lucide="ruler" class="h-4 w-4 text-zinc-500"></i> ${a.estatura.toFixed(2)} m`;
+      document.getElementById('actor-city').innerHTML = `<i data-lucide="map-pin" class="h-4 w-4 text-zinc-500"></i> ${escapeHtml(a.ubicacion.ciudad)}, ${escapeHtml(a.ubicacion.pais)}`;
+      document.getElementById('actor-disciplines').innerHTML = a.disciplinas.map((d) =>
+        `<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-400">${escapeHtml(d)}</span>`
+      ).join('');
+      document.getElementById('reel-poster').src = a.imagen;
+      document.getElementById('reel-poster').alt = `Videoreel de ${a.nombre}`;
+      document.getElementById('composite-grid').innerHTML = a.composite.map((c) => `
+        <figure class="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-square">
+          <img src="${c.src}" alt="${escapeHtml(c.label)}" class="h-full w-full object-cover object-top" loading="lazy" />
+          <figcaption class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-zinc-950/90 px-2 py-1.5 text-[10px] font-medium text-zinc-300">${escapeHtml(c.label)}</figcaption>
+        </figure>
+      `).join('');
+      document.getElementById('actor-skills').innerHTML = a.habilidades.map((h) => `
+        <div class="flex items-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
+          <i data-lucide="${h.icon}" class="h-5 w-5 text-cyan-400 shrink-0"></i>
+          <span class="text-sm text-zinc-200">${escapeHtml(h.text)}</span>
+        </div>
+      `).join('');
+      document.getElementById('actor-reviews').innerHTML = a.resenas.map((r) => `
+        <div class="px-5 py-4">
+          <p class="text-sm font-semibold text-zinc-200">${escapeHtml(r.autor)}</p>
+          <p class="mt-2 text-sm text-zinc-400 leading-relaxed">${escapeHtml(r.texto)}</p>
+        </div>
+      `).join('');
+      renderCalendar(a);
+      lucide.createIcons();
+    }
+
+    function isoDay(y, m, d) {
+      return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    }
+
+    function renderCalendar(actor) {
+      const y = calView.getFullYear();
+      const m = calView.getMonth();
+      const label = calView.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      document.getElementById('cal-month-label').textContent = label;
+      document.getElementById('cal-weekdays').innerHTML = WEEKDAYS.map((d) => `<span class="py-1">${d}</span>`).join('');
+      const first = new Date(y, m, 1);
+      const startPad = (first.getDay() + 6) % 7;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const busy = new Set(actor.diasOcupados || []);
+      const desde = document.getElementById('rodaje-desde').value;
+      const hasta = document.getElementById('rodaje-hasta').value;
+      const rangeStart = desde && hasta ? (desde <= hasta ? desde : hasta) : (calRangeState.anchor || desde || '');
+      const rangeEnd = desde && hasta ? (desde <= hasta ? hasta : desde) : (calRangeState.end || '');
+      let html = '';
+      for (let i = 0; i < startPad; i++) html += '<span class="cal-day other-month"></span>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const iso = isoDay(y, m, d);
+        const isBusy = busy.has(iso);
+        const inRange = rangeStart && rangeEnd && iso >= rangeStart && iso <= rangeEnd;
+        const isAnchor = calRangeState.anchor === iso || (rangeStart && !rangeEnd && rangeStart === iso);
+        let cls = 'cal-day ';
+        cls += isBusy ? 'busy' : 'free';
+        if (inRange || isAnchor) cls += ' selected';
+        html += `<button type="button" class="${cls}" data-iso="${iso}" ${isBusy ? 'disabled' : ''}>${d}</button>`;
+      }
+      const grid = document.getElementById('cal-days');
+      grid.innerHTML = html;
+      const startInput = document.getElementById('rodaje-desde');
+      const endInput = document.getElementById('rodaje-hasta');
+      grid.querySelectorAll('.cal-day[data-iso]:not([disabled])').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          calRangeState = FrameFlowDB.applyCalendarRangeClick(btn.dataset.iso, calRangeState, startInput, endInput);
+          renderCalendar(actor);
+        });
+      });
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(showToast._x);
+      showToast._x = setTimeout(() => t.classList.add('hidden'), 2800);
+    }
+
+    const actor = getActor();
+    const catalogView = sessionStorage.getItem('ff_catalog_view') || 'casting';
+    document.getElementById('back-catalog').href = FrameFlowDB.catalogBackUrl(catalogView);
+    FrameFlowSidebar.mount('sidebar-mount', 'catalogo');
+    renderActor(actor);
+    fillProjectSelect();
+    renderAssignMenus('header-assign-menu', actor.id);
+
+    document.getElementById('btn-assign-toggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('header-assign-menu').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => document.getElementById('header-assign-menu').classList.add('hidden'));
+
+    document.getElementById('cal-prev').addEventListener('click', () => {
+      calView.setMonth(calView.getMonth() - 1);
+      renderCalendar(currentActor);
+    });
+    document.getElementById('cal-next').addEventListener('click', () => {
+      calView.setMonth(calView.getMonth() + 1);
+      renderCalendar(currentActor);
+    });
+
+    document.getElementById('btn-play-reel').addEventListener('click', () => showToast('Reproducción de videoreel (demo)'));
+
+    document.getElementById('casting-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const proj = document.getElementById('proyecto-destino').value;
+      if (!proj) { showToast('Selecciona un proyecto activo'); return; }
+      FrameFlowDB.assignResource(proj, 'actor', actor.id);
+      showToast('Añadido con éxito al proyecto');
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>

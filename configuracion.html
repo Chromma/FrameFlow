@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuración | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="configuracion">
+  <div class="flex min-h-screen">
+    <div id="sidebar-mount" class="contents"></div>
+    <main class="flex-1 p-6 sm:p-8">
+      <button id="menu-toggle" type="button" class="lg:hidden mb-4 rounded-lg border border-zinc-700 p-2"><i data-lucide="menu" class="h-5 w-5"></i></button>
+      <h1 class="text-2xl font-semibold text-white flex items-center gap-2">
+        <i data-lucide="settings" class="h-7 w-7 text-cyan-400"></i>
+        Configuración
+      </h1>
+      <p class="mt-2 text-zinc-500">Preferencias de cuenta, notificaciones y equipo.</p>
+      <div class="mt-8 max-w-lg space-y-4">
+        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <span class="text-sm">Alertas por email</span>
+          <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
+        </label>
+        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <span class="text-sm">Modo oscuro</span>
+          <input type="checkbox" checked disabled class="rounded border-zinc-600 bg-zinc-800 text-cyan-500" />
+        </label>
+        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+          <span class="text-sm">Luz Verde — avisos críticos</span>
+          <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
+        </label>
+      </div>
+      <a href="index.html" class="inline-flex mt-8 items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
+        <i data-lucide="arrow-left" class="h-4 w-4"></i> Volver al Dashboard
+      </a>
+    </main>
+  </div>
+  <script src="db.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    FrameFlowSidebar.mount('sidebar-mount', 'configuracion');
+    lucide.createIcons();
+  </script>
+</body>
+</html>

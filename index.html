@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-backdrop { animation: fadeIn 0.2s ease-out; }
+    .modal-panel { animation: slideUp 0.22s ease-out; }
+    .progress-fill { transition: width 0.5s ease-out; }
+    .alert-row-read { opacity: 0.4 !important; }
+    .catalog-subnav:not(.hidden) { display: block; }
+  </style>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="dashboard">
+
+  <div class="flex h-full min-h-screen">
+
+    <div id="sidebar-mount" class="contents"></div>
+
+    <!-- MAIN -->
+    <main class="flex flex-1 flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div class="flex flex-col gap-3 px-4 py-4 sm:px-6 lg:px-8 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center gap-3">
+            <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300" aria-label="Menú">
+              <i data-lucide="menu" class="h-5 w-5"></i>
+            </button>
+            <div>
+              <h1 class="text-lg font-semibold text-white sm:text-xl">Panel de Control</h1>
+              <p id="header-date" class="text-xs text-zinc-500 hidden sm:block"></p>
+            </div>
+          </div>
+
+          <!-- Buscador: filtra proyectos en tiempo real -->
+          <div class="relative flex-1 max-w-xl">
+            <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"></i>
+            <input
+              id="search-projects"
+              type="search"
+              placeholder="Buscar locaciones o talento..."
+              class="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+              autocomplete="off"
+            />
+            <p id="search-hint" class="absolute -bottom-5 left-0 text-[10px] text-zinc-600 hidden sm:block"></p>
+          </div>
+
+          <div class="flex items-center gap-2 self-end sm:self-auto">
+            <!-- Calendario dropdown -->
+            <div class="relative" id="calendar-wrap">
+              <button id="calendar-toggle" type="button" class="rounded-lg border border-zinc-700/80 bg-zinc-900/60 p-2.5 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600 transition-colors" aria-expanded="false" aria-haspopup="true" aria-label="Calendario">
+                <i data-lucide="calendar-days" class="h-5 w-5"></i>
+              </button>
+              <div id="calendar-dropdown" class="absolute right-0 top-full mt-2 hidden w-72 rounded-xl border border-zinc-700/80 bg-zinc-900 shadow-2xl shadow-black/40 z-50 p-3">
+                <div class="flex items-center justify-between mb-2 px-1">
+                  <button type="button" id="cal-prev" class="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"><i data-lucide="chevron-left" class="h-4 w-4"></i></button>
+                  <span id="cal-month-label" class="text-sm font-semibold text-white"></span>
+                  <button type="button" id="cal-next" class="p-1 rounded text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"><i data-lucide="chevron-right" class="h-4 w-4"></i></button>
+                </div>
+                <div id="cal-weekdays" class="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium text-zinc-500 mb-1"></div>
+                <div id="cal-days" class="grid grid-cols-7 gap-0.5 text-center text-xs"></div>
+              </div>
+            </div>
+
+            <button type="button" class="relative rounded-lg border border-zinc-700/80 bg-zinc-900/60 p-2.5 text-zinc-400 hover:text-zinc-200" aria-label="Notificaciones">
+              <i data-lucide="bell" class="h-5 w-5"></i>
+              <span id="bell-badge" class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-500 text-[10px] font-bold text-zinc-950">0</span>
+            </button>
+
+            <button id="btn-nuevo-proyecto" type="button" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+              <i data-lucide="plus" class="h-4 w-4"></i>
+              <span>+ Nuevo Proyecto</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-6 lg:px-8 space-y-8">
+
+        <!-- CENTRO DE ALERTAS — Log compacto -->
+        <section aria-labelledby="alerts-heading">
+          <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="alerts-heading" class="text-base font-semibold text-white flex items-center gap-2">
+                <i data-lucide="radio" class="h-5 w-5 text-cyan-400"></i>
+                Centro de Alertas Operativas
+              </h2>
+              <p class="mt-0.5 text-xs text-zinc-500">Log en tiempo real</p>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+              <div class="flex gap-1.5" id="alert-filters" role="tablist">
+                <button type="button" data-filter="all" class="alert-filter-btn rounded-md bg-zinc-800 px-2.5 py-1 text-[11px] font-medium text-zinc-200">Todas</button>
+                <button type="button" data-filter="unread" class="alert-filter-btn rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-800/60">No leídas</button>
+              </div>
+              <select id="alert-filter-project" class="rounded-lg border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-300 focus:border-cyan-500/50 focus:outline-none" aria-label="Filtrar por proyecto">
+                <option value="">Todos los proyectos</option>
+              </select>
+              <select id="alert-filter-severity" class="rounded-lg border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-[11px] text-zinc-300 focus:border-cyan-500/50 focus:outline-none" aria-label="Filtrar por severidad">
+                <option value="">Toda severidad</option>
+                <option value="critico">Crítico</option>
+                <option value="medio">Medio</option>
+                <option value="info">Info</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rounded-xl border border-zinc-800 bg-zinc-900/40 overflow-hidden">
+            <div class="grid grid-cols-[4px_1fr_auto] sm:grid-cols-[4px_140px_1fr_auto] gap-x-2 sm:gap-x-3 px-2 sm:px-3 py-2 border-b border-zinc-800/80 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+              <span></span>
+              <span class="hidden sm:block">Tipo</span>
+              <span>Mensaje</span>
+              <span class="text-right pr-1">Acción</span>
+            </div>
+            <div id="alerts-log" class="divide-y divide-zinc-800/60 max-h-56 overflow-y-auto"></div>
+            <p id="alerts-empty" class="hidden py-6 text-center text-xs text-zinc-600">No hay alertas con este filtro.</p>
+          </div>
+        </section>
+
+        <!-- MIS PROYECTOS ACTIVOS -->
+        <section aria-labelledby="projects-heading">
+          <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="projects-heading" class="text-base font-semibold text-white flex items-center gap-2">
+                <i data-lucide="film" class="h-5 w-5 text-cyan-400"></i>
+                Mis Proyectos Activos
+              </h2>
+              <p id="projects-count" class="mt-1 text-sm text-zinc-500"></p>
+            </div>
+            <div class="flex flex-wrap gap-1.5" id="project-filters" role="tablist" aria-label="Filtrar por estado">
+              <button type="button" data-status="all" class="project-filter-btn rounded-md bg-zinc-800 px-2.5 py-1 text-[11px] font-medium text-zinc-200">Todos</button>
+              <button type="button" data-status="planificacion" class="project-filter-btn rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-800/60">Planificación</button>
+              <button type="button" data-status="produccion" class="project-filter-btn rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-800/60">En Producción</button>
+              <button type="button" data-status="finalizado" class="project-filter-btn rounded-md px-2.5 py-1 text-[11px] font-medium text-zinc-500 hover:bg-zinc-800/60">Finalizado</button>
+            </div>
+          </div>
+          <div id="projects-grid" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+          <p id="projects-empty" class="hidden py-12 text-center text-sm text-zinc-500">Ningún proyecto coincide con los filtros.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: Nuevo Proyecto -->
+  <div id="modal-nuevo" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-nuevo-title" aria-hidden="true">
+    <div class="modal-backdrop-click absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="modal-panel relative w-full max-w-md rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-zinc-800 px-6 py-4">
+        <h2 id="modal-nuevo-title" class="text-lg font-semibold text-white">Nuevo Proyecto</h2>
+        <button type="button" class="modal-nuevo-close rounded-lg p-2 text-zinc-500 hover:bg-zinc-800"><i data-lucide="x" class="h-5 w-5"></i></button>
+      </div>
+      <form id="form-nuevo-proyecto" class="px-6 py-5 space-y-4">
+        <div>
+          <label for="project-name" class="block text-xs font-medium text-zinc-400 mb-1.5">Nombre del Proyecto</label>
+          <input id="project-name" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none" />
+        </div>
+        <div>
+          <label for="project-client" class="block text-xs font-medium text-zinc-400 mb-1.5">Cliente</label>
+          <input id="project-client" required list="clientes-datalist" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none" />
+          <datalist id="clientes-datalist"></datalist>
+        </div>
+        <div>
+          <label for="project-type" class="block text-xs font-medium text-zinc-400 mb-1.5">Tipo</label>
+          <select id="project-type" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none">
+            <option value="" disabled selected>Seleccionar...</option>
+            <option value="comercial">Comercial</option>
+            <option value="cine">Cine</option>
+            <option value="web">Web</option>
+          </select>
+        </div>
+        <div>
+          <label for="project-budget" class="block text-xs font-medium text-zinc-400 mb-1.5">Presupuesto (USD)</label>
+          <input id="project-budget" type="number" min="0" step="100" value="0" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none" />
+        </div>
+        <div>
+          <label for="project-description" class="block text-xs font-medium text-zinc-400 mb-1.5">Descripción</label>
+          <textarea id="project-description" rows="3" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm resize-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none" placeholder="Objetivos, alcance y notas de producción..."></textarea>
+        </div>
+        <div>
+          <label for="project-color" class="block text-xs font-medium text-zinc-400 mb-1.5">Color del tag de producción</label>
+          <select id="project-color" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:outline-none">
+            <option value="0">Cian</option>
+            <option value="1">Violeta</option>
+            <option value="2">Esmeralda</option>
+            <option value="3">Ámbar</option>
+            <option value="4">Rosa</option>
+            <option value="5">Fucsia</option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="project-start" class="block text-xs font-medium text-zinc-400 mb-1.5">Fecha Inicio</label>
+            <input id="project-start" type="date" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+          </div>
+          <div>
+            <label for="project-end" class="block text-xs font-medium text-zinc-400 mb-1.5">Fecha Fin</label>
+            <input id="project-end" type="date" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm [color-scheme:dark] focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+          </div>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" class="modal-nuevo-close flex-1 rounded-xl border border-zinc-700 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800">Cancelar</button>
+          <button type="submit" class="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-2.5 text-sm font-semibold text-zinc-950">Crear Proyecto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Vista rápida del proyecto -->
+  <div id="modal-vista" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-vista-title" aria-hidden="true">
+    <div class="modal-vista-backdrop absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="modal-panel relative w-full max-w-lg rounded-2xl border border-zinc-700/80 bg-zinc-900 shadow-2xl">
+      <div class="border-b border-zinc-800 px-6 py-4">
+        <p class="text-[10px] uppercase tracking-wider text-cyan-400 font-semibold">Vista rápida</p>
+        <h2 id="modal-vista-title" class="text-xl font-semibold text-white mt-1"></h2>
+      </div>
+      <div class="px-6 py-5 space-y-4 text-sm">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <p class="text-[10px] uppercase text-zinc-500 mb-0.5">Cliente</p>
+            <p id="qv-client" class="font-medium text-zinc-200"></p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-zinc-500 mb-0.5">Tipo de producción</p>
+            <p id="qv-type" class="font-medium text-zinc-200"></p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-zinc-500 mb-0.5">Presupuesto</p>
+            <p id="qv-budget" class="font-medium text-cyan-400"></p>
+          </div>
+          <div>
+            <p class="text-[10px] uppercase text-zinc-500 mb-0.5">Estado</p>
+            <p id="qv-status" class="font-medium"></p>
+          </div>
+        </div>
+        <div>
+          <p class="text-[10px] uppercase text-zinc-500 mb-1">Descripción</p>
+          <p id="qv-description" class="text-zinc-400 text-sm leading-relaxed line-clamp-3"></p>
+        </div>
+        <div>
+          <p class="text-[10px] uppercase text-zinc-500 mb-1">Fechas</p>
+          <p id="qv-dates" class="text-zinc-300"></p>
+        </div>
+        <div>
+          <div class="flex justify-between text-xs text-zinc-500 mb-1.5">
+            <span>Progreso</span>
+            <span id="qv-progress-pct" class="text-zinc-300 font-medium"></span>
+          </div>
+          <div class="h-2 overflow-hidden rounded-full bg-zinc-800">
+            <div id="qv-progress-bar" class="progress-fill h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 border-t border-zinc-800 px-6 py-4">
+        <button type="button" id="qv-close" class="flex-1 rounded-xl border border-zinc-700 py-2.5 text-sm font-medium text-zinc-400 hover:bg-zinc-800">Cerrar</button>
+        <a id="qv-mesa-link" href="#" class="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-2.5 text-sm font-semibold text-zinc-950 text-center hover:from-cyan-400 hover:to-cyan-500 transition-all">
+          Ir a Mesa de Trabajo Completa
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="db.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    const { COLOR_PALETTE, TYPE_LABELS, STATUS_META, formatBudget } = FrameFlowDB;
+
+    let alertFilter = 'all';
+    let alertProjectFilter = '';
+    let alertSeverityFilter = '';
+    let projectStatusFilter = 'all';
+    let searchQuery = '';
+    let calView = new Date();
+
+    function escapeHtml(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
+    function formatDateES(iso) {
+      if (!iso) return '—';
+      return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function getColor(idx) {
+      return FrameFlowDB.getColor(idx);
+    }
+
+    function severityDot(sev) {
+      return { critico: 'bg-red-500', medio: 'bg-yellow-400', info: 'bg-emerald-500' }[sev] || 'bg-zinc-500';
+    }
+
+    function severityLabel(sev) {
+      return { critico: 'Crítico', medio: 'Medio', info: 'Info' }[sev] || sev;
+    }
+
+    function projectMatchesSearch(p, q) {
+      if (!q) return true;
+      const hay = `${p.name} ${p.client} ${TYPE_LABELS[p.type] || p.type} ${STATUS_META[p.status]?.label || ''}`.toLowerCase();
+      return hay.includes(q.toLowerCase());
+    }
+
+    function populateAlertProjectFilter() {
+      const sel = document.getElementById('alert-filter-project');
+      const projects = FrameFlowDB.getProjects();
+      sel.innerHTML = '<option value="">Todos los proyectos</option>' +
+        projects.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+      sel.value = alertProjectFilter;
+    }
+
+    function renderAlerts() {
+      const log = document.getElementById('alerts-log');
+      const empty = document.getElementById('alerts-empty');
+      const badge = document.getElementById('bell-badge');
+      let list = FrameFlowDB.getAlerts();
+
+      if (alertFilter === 'unread') list = list.filter((a) => !a.read);
+      if (alertProjectFilter) list = list.filter((a) => a.projectId === alertProjectFilter);
+      if (alertSeverityFilter) list = list.filter((a) => a.severity === alertSeverityFilter);
+
+      const unreadCount = FrameFlowDB.getAlerts().filter((a) => !a.read).length;
+      badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+
+      if (list.length === 0) {
+        log.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      const projects = FrameFlowDB.getProjects();
+      log.innerHTML = list.map((a) => {
+        const proj = projects.find((p) => p.id === a.projectId);
+        const projLabel = proj ? proj.name : 'General';
+        return `
+        <div data-alert-id="${a.id}" class="alert-row grid grid-cols-[4px_1fr_auto] sm:grid-cols-[4px_100px_1fr_auto] gap-x-2 sm:gap-x-3 items-center px-2 sm:px-3 py-2 min-h-[36px] hover:bg-zinc-800/30 transition-opacity ${a.read ? 'alert-row-read' : ''}">
+          <span class="h-full min-h-[20px] w-1 rounded-full ${severityDot(a.severity)}" title="${severityLabel(a.severity)}"></span>
+          <span class="hidden sm:block text-[10px] font-medium text-zinc-500 truncate">${escapeHtml(projLabel)}</span>
+          <div class="min-w-0">
+            <p class="text-xs text-zinc-300 truncate">${escapeHtml(a.message)}</p>
+            <p class="text-[10px] text-zinc-600">${escapeHtml(a.time)} · ${escapeHtml(a.category)}</p>
+          </div>
+          <button type="button" class="mark-read-btn shrink-0 p-1.5 rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-cyan-400" data-id="${a.id}" aria-label="Marcar como leído">
+            <i data-lucide="${a.read ? 'check' : 'eye'}" class="h-3.5 w-3.5"></i>
+          </button>
+        </div>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function bindAlerts() {
+      document.getElementById('alerts-log').addEventListener('click', (e) => {
+        const btn = e.target.closest('.mark-read-btn');
+        if (!btn) return;
+        FrameFlowDB.markAlertRead(btn.dataset.id);
+        renderAlerts();
+      });
+
+      document.querySelectorAll('.alert-filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          alertFilter = btn.dataset.filter;
+          document.querySelectorAll('.alert-filter-btn').forEach((b) => {
+            const on = b.dataset.filter === alertFilter;
+            b.classList.toggle('bg-zinc-800', on);
+            b.classList.toggle('text-zinc-200', on);
+            b.classList.toggle('text-zinc-500', !on);
+          });
+          renderAlerts();
+        });
+      });
+
+      document.getElementById('alert-filter-project').addEventListener('change', (e) => {
+        alertProjectFilter = e.target.value;
+        renderAlerts();
+      });
+      document.getElementById('alert-filter-severity').addEventListener('change', (e) => {
+        alertSeverityFilter = e.target.value;
+        renderAlerts();
+      });
+    }
+
+    function renderProjects() {
+      const proyectos = FrameFlowDB.getProjects();
+      const grid = document.getElementById('projects-grid');
+      const empty = document.getElementById('projects-empty');
+      const countEl = document.getElementById('projects-count');
+      const hint = document.getElementById('search-hint');
+
+      let visible = proyectos.filter((p) => projectMatchesSearch(p, searchQuery));
+      if (projectStatusFilter !== 'all') visible = visible.filter((p) => p.status === projectStatusFilter);
+
+      const filterLabel = projectStatusFilter !== 'all' ? STATUS_META[projectStatusFilter]?.label : null;
+      if (searchQuery && filterLabel) countEl.textContent = `${visible.length} de ${proyectos.length} · ${filterLabel}`;
+      else if (searchQuery) countEl.textContent = `${visible.length} de ${proyectos.length} proyectos`;
+      else if (filterLabel) countEl.textContent = `${visible.length} proyecto${visible.length !== 1 ? 's' : ''} · ${filterLabel}`;
+      else countEl.textContent = `${proyectos.length} proyectos en curso`;
+
+      hint.classList.toggle('hidden', !searchQuery);
+      if (searchQuery) hint.textContent = `Filtrando: "${searchQuery}"`;
+
+      if (visible.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      grid.innerHTML = visible.map((p) => {
+        const color = getColor(p.colorIndex);
+        const st = STATUS_META[p.status] || STATUS_META.planificacion;
+        const faded = p.status === 'finalizado' ? 'opacity-80' : '';
+        return `
+          <article data-project-id="${p.id}" class="project-card flex flex-col rounded-xl border ${color.border} bg-zinc-900/50 p-5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all cursor-pointer ${faded}" tabindex="0" role="button">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="text-sm font-semibold text-white leading-snug">${escapeHtml(p.name)}</h3>
+              <span class="shrink-0 rounded-full ${st.badge} px-2 py-0.5 text-[10px] font-semibold">${st.label}</span>
+            </div>
+            <p class="mt-1 text-xs text-zinc-500">Cliente: <span class="text-zinc-400">${escapeHtml(p.client)}</span></p>
+            <p class="mt-0.5 text-[10px] text-cyan-400/80">${formatBudget(p.budget)}</p>
+            <div class="mt-3">
+              <div class="flex justify-between text-[10px] text-zinc-500 mb-1.5"><span>Progreso</span><span class="text-zinc-400 font-medium">${p.progress}%</span></div>
+              <div class="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                <div class="progress-fill h-full rounded-full bg-gradient-to-r ${color.bar}" style="width:${p.progress}%"></div>
+              </div>
+            </div>
+            <div class="mt-4 flex items-center gap-2 text-[10px] text-zinc-600">
+              <i data-lucide="calendar" class="h-3 w-3"></i>
+              <span>${formatDateES(p.start)} — ${formatDateES(p.end)}</span>
+            </div>
+          </article>`;
+      }).join('');
+      lucide.createIcons();
+    }
+
+    function openQuickView(projectId) {
+      const p = FrameFlowDB.getProject(projectId);
+      if (!p) return;
+      const color = getColor(p.colorIndex);
+      const st = STATUS_META[p.status];
+
+      document.getElementById('modal-vista-title').textContent = p.name;
+      document.getElementById('qv-client').textContent = p.client;
+      document.getElementById('qv-type').textContent = TYPE_LABELS[p.type] || p.type;
+      document.getElementById('qv-budget').textContent = formatBudget(p.budget);
+      document.getElementById('qv-description').textContent = p.description || 'Sin descripción.';
+      document.getElementById('qv-status').textContent = st.label;
+      document.getElementById('qv-status').className = `font-medium ${st.badge.split(' ').find((c) => c.startsWith('text-')) || 'text-zinc-300'}`;
+      document.getElementById('qv-dates').textContent = `${formatDateES(p.start)} → ${formatDateES(p.end)}`;
+      document.getElementById('qv-progress-pct').textContent = `${p.progress}%`;
+      const bar = document.getElementById('qv-progress-bar');
+      bar.style.width = `${p.progress}%`;
+      bar.className = `progress-fill h-full rounded-full bg-gradient-to-r ${color.bar}`;
+      document.getElementById('qv-mesa-link').href = `proyecto-detalle.html?id=${encodeURIComponent(p.id)}`;
+
+      const modal = document.getElementById('modal-vista');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function closeQuickView() {
+      const modal = document.getElementById('modal-vista');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      modal.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function bindProjects() {
+      document.getElementById('projects-grid').addEventListener('click', (e) => {
+        const card = e.target.closest('.project-card');
+        if (card) openQuickView(card.dataset.projectId);
+      });
+      document.getElementById('projects-grid').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          const card = e.target.closest('.project-card');
+          if (card) openQuickView(card.dataset.projectId);
+        }
+      });
+      document.getElementById('search-projects').addEventListener('input', (e) => {
+        searchQuery = e.target.value.trim();
+        renderProjects();
+      });
+      document.querySelectorAll('.project-filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          projectStatusFilter = btn.dataset.status;
+          document.querySelectorAll('.project-filter-btn').forEach((b) => {
+            const on = b.dataset.status === projectStatusFilter;
+            b.classList.toggle('bg-zinc-800', on);
+            b.classList.toggle('text-zinc-200', on);
+            b.classList.toggle('text-zinc-500', !on);
+          });
+          renderProjects();
+        });
+      });
+    }
+
+    const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
+
+    function renderCalendar() {
+      const y = calView.getFullYear();
+      const m = calView.getMonth();
+      const label = calView.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+      document.getElementById('cal-month-label').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+      document.getElementById('cal-weekdays').innerHTML = WEEKDAYS.map((d) => `<span class="py-1">${d}</span>`).join('');
+      const first = new Date(y, m, 1);
+      const startPad = (first.getDay() + 6) % 7;
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      const today = new Date();
+      let cells = '';
+      for (let i = 0; i < startPad; i++) cells += '<span></span>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const isToday = d === today.getDate() && m === today.getMonth() && y === today.getFullYear();
+        const cls = isToday ? 'rounded-md bg-cyan-500/20 text-cyan-400 font-semibold py-1.5' : 'text-zinc-400 py-1.5 hover:bg-zinc-800 rounded-md';
+        cells += `<span class="${cls}">${d}</span>`;
+      }
+      document.getElementById('cal-days').innerHTML = cells;
+    }
+
+    function bindCalendar() {
+      const wrap = document.getElementById('calendar-wrap');
+      const dropdown = document.getElementById('calendar-dropdown');
+      const toggle = document.getElementById('calendar-toggle');
+      toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const open = dropdown.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', String(!open));
+        if (!open) renderCalendar();
+      });
+      document.getElementById('cal-prev').addEventListener('click', (e) => { e.stopPropagation(); calView.setMonth(calView.getMonth() - 1); renderCalendar(); });
+      document.getElementById('cal-next').addEventListener('click', (e) => { e.stopPropagation(); calView.setMonth(calView.getMonth() + 1); renderCalendar(); });
+      document.addEventListener('click', (e) => {
+        if (!wrap.contains(e.target)) { dropdown.classList.add('hidden'); toggle.setAttribute('aria-expanded', 'false'); }
+      });
+    }
+
+    function openNuevoModal() {
+      const m = document.getElementById('modal-nuevo');
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+      m.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('overflow-hidden');
+      document.getElementById('project-name').focus();
+    }
+
+    function closeNuevoModal() {
+      const m = document.getElementById('modal-nuevo');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+      m.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function refreshClientesDatalist() {
+      document.getElementById('clientes-datalist').innerHTML =
+        FrameFlowDB.getClients().map((c) => `<option value="${escapeHtml(c)}">`).join('');
+    }
+
+    function bindModals() {
+      document.getElementById('btn-nuevo-proyecto').addEventListener('click', openNuevoModal);
+      document.querySelectorAll('.modal-nuevo-close').forEach((el) => el.addEventListener('click', closeNuevoModal));
+      document.querySelector('#modal-nuevo .modal-backdrop-click').addEventListener('click', closeNuevoModal);
+      document.getElementById('qv-close').addEventListener('click', closeQuickView);
+      document.querySelector('.modal-vista-backdrop').addEventListener('click', closeQuickView);
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (!document.getElementById('modal-nuevo').classList.contains('hidden')) closeNuevoModal();
+        if (!document.getElementById('modal-vista').classList.contains('hidden')) closeQuickView();
+        document.getElementById('calendar-dropdown').classList.add('hidden');
+      });
+
+      document.getElementById('form-nuevo-proyecto').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('project-name').value.trim();
+        const client = document.getElementById('project-client').value.trim();
+        const type = document.getElementById('project-type').value;
+        const start = document.getElementById('project-start').value;
+        const end = document.getElementById('project-end').value;
+        const budget = document.getElementById('project-budget').value;
+        const description = document.getElementById('project-description').value.trim();
+        const colorIndex = document.getElementById('project-color').value;
+
+        FrameFlowDB.addClient(client);
+        FrameFlowDB.createProject({ name, client, type, start, end, budget, description, colorIndex, progress: 0, status: 'planificacion' });
+
+        refreshClientesDatalist();
+        populateAlertProjectFilter();
+        renderProjects();
+        document.getElementById('form-nuevo-proyecto').reset();
+        document.getElementById('project-budget').value = '0';
+        closeNuevoModal();
+      });
+    }
+
+    FrameFlowSidebar.mount('sidebar-mount', 'dashboard');
+    document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    refreshClientesDatalist();
+    populateAlertProjectFilter();
+    renderAlerts();
+    renderProjects();
+    bindAlerts();
+    bindProjects();
+    bindCalendar();
+    bindModals();
+    lucide.createIcons();
+  </script>
+</body>
+</html>

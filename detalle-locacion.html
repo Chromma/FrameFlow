@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detalle de Locación | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        },
+      },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    /* Mosaico 5 fotos — patrón Airbnb */
+    .photo-mosaic {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 8px;
+      height: min(56vh, 480px);
+      min-height: 280px;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+    .photo-mosaic .mosaic-main {
+      grid-column: 1 / 3;
+      grid-row: 1 / 3;
+    }
+    .photo-mosaic button {
+      position: relative;
+      overflow: hidden;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      background: #27272a;
+    }
+    .photo-mosaic button img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.35s ease, filter 0.35s ease;
+    }
+    .photo-mosaic button:hover img {
+      transform: scale(1.03);
+      filter: brightness(1.08);
+    }
+    .photo-mosaic button:focus-visible {
+      outline: 2px solid #22d3ee;
+      outline-offset: 2px;
+      z-index: 2;
+    }
+    @media (max-width: 640px) {
+      .photo-mosaic {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 200px 100px 100px;
+        height: auto;
+      }
+      .photo-mosaic .mosaic-main {
+        grid-column: 1 / 3;
+        grid-row: 1;
+      }
+    }
+    .booking-sticky {
+      position: sticky;
+      top: 88px;
+    }
+    .amenity-row + .amenity-row {
+      border-top: 1px solid rgba(63, 63, 70, 0.5);
+    }
+    .review-card + .review-card {
+      border-top: 1px solid rgba(63, 63, 70, 0.4);
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .toast-show { animation: fadeIn 0.2s ease-out; }
+  </style>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="catalogo">
+
+  <div class="flex h-full min-h-screen">
+
+    <div id="sidebar-mount" class="contents"></div>
+
+    <!-- MAIN -->
+    <main class="flex flex-1 flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl">
+        <div class="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300" aria-label="Menú">
+            <i data-lucide="menu" class="h-5 w-5"></i>
+          </button>
+          <a id="back-catalog" href="catalogo.html?vista=locaciones" class="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-cyan-400 transition-colors">
+            <i data-lucide="arrow-left" class="h-4 w-4"></i>
+            Volver al catálogo
+          </a>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto">
+        <div class="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8">
+
+          <!-- 1. ENCABEZADO -->
+          <header class="mb-6">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div class="min-w-0 flex-1">
+                <h1 id="loc-title" class="text-2xl font-semibold tracking-tight text-white sm:text-[28px] sm:leading-tight">
+                  Encantador departamento en Puerto Santa Ana
+                </h1>
+                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+                  <span id="loc-rating" class="inline-flex items-center gap-1 font-medium text-white">
+                    <i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400"></i>
+                    <span>4.92</span>
+                    <span class="text-zinc-500 font-normal">·</span>
+                    <span class="text-zinc-400 underline decoration-zinc-600 underline-offset-2">38 reseñas</span>
+                  </span>
+                  <span class="text-zinc-600 hidden sm:inline">·</span>
+                  <span id="loc-badges" class="inline-flex flex-wrap items-center gap-2">
+                    <span class="inline-flex items-center gap-1 text-cyan-400">
+                      <i data-lucide="badge-check" class="h-4 w-4"></i>
+                      Locación verificada
+                    </span>
+                    <span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400">Destacado</span>
+                  </span>
+                  <span class="text-zinc-600 hidden sm:inline">·</span>
+                  <span id="loc-location" class="inline-flex items-center gap-1 text-zinc-400">
+                    <i data-lucide="map-pin" class="h-3.5 w-3.5"></i>
+                    Guayaquil, Ecuador
+                  </span>
+                </div>
+              </div>
+              <div class="flex shrink-0 items-center gap-2 self-start">
+                <button type="button" id="btn-share" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white transition-colors">
+                  <i data-lucide="share-2" class="h-4 w-4"></i>
+                  Compartir
+                </button>
+                <div class="relative" id="assign-project-wrap">
+                  <button type="button" id="btn-assign-project" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white transition-colors">
+                    <i data-lucide="folder-plus" class="h-4 w-4"></i>
+                    <span>Vincular a proyecto</span>
+                  </button>
+                  <div id="assign-project-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black/50"></div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <!-- 2. MOSAICO DE FOTOS -->
+          <section class="relative mb-10" aria-label="Galería de fotos">
+            <div id="photo-mosaic" class="photo-mosaic">
+              <!-- Rellenado por JS -->
+            </div>
+            <button type="button" id="btn-all-photos" class="absolute bottom-4 right-4 z-10 inline-flex items-center gap-2 rounded-lg border border-zinc-600 bg-zinc-950/90 px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur-sm hover:bg-zinc-900 transition-colors">
+              <i data-lucide="layout-grid" class="h-4 w-4"></i>
+              Ver todas las fotos
+            </button>
+          </section>
+
+          <!-- 3. LAYOUT DOS COLUMNAS -->
+          <div class="flex flex-col gap-10 lg:flex-row lg:gap-12">
+
+            <!-- COLUMNA IZQUIERDA ~65% -->
+            <div class="min-w-0 flex-[1.85] lg:max-w-[65%]">
+
+              <div class="border-b border-zinc-800 pb-6">
+                <h2 id="loc-space-type" class="text-xl font-semibold text-white">Departamento entero de filmación</h2>
+                <p id="loc-capacity-line" class="mt-1 text-sm text-zinc-400">
+                  Apto para equipos de hasta 30 personas · 2 baños · Zona de catering
+                </p>
+              </div>
+
+              <!-- Reputación destacada -->
+              <div id="loc-highlight" class="mt-6 flex gap-4 rounded-xl border border-zinc-700/60 bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 p-5">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-cyan-500/15">
+                  <i data-lucide="award" class="h-6 w-6 text-cyan-400"></i>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-white">Una de las locaciones mejor puntuadas</p>
+                  <p class="mt-1 text-sm text-zinc-400 leading-relaxed">
+                    Según reseñas de productores ejecutivos, esta locación destaca por logística de carga, acústica controlada y flexibilidad en jornadas extendidas.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Descripción -->
+              <section class="mt-8 border-b border-zinc-800 pb-8">
+                <h3 class="text-lg font-semibold text-white mb-4">Sobre este espacio</h3>
+                <div id="loc-description" class="space-y-4 text-sm text-zinc-300 leading-relaxed">
+                  <p>
+                    Ubicado en el corazón de Puerto Santa Ana, este departamento combina arquitectura colonial restaurada con acabados modernos pensados para rodajes de alto estándar. Techos de 3.2 m de altura libre permiten montaje de truss ligero y rigs aéreos sin comprometer la estética del set.
+                  </p>
+                  <p>
+                    El mobiliario mezcla piezas coloniales auténticas con módulos contemporáneos desmontables, ideal para comerciales, videoclips y fiction de interior. La planta abierta facilita reconfiguración de blocking en menos de una hora, con puntos de anclaje certificados en muros estructurales.
+                  </p>
+                  <p>
+                    Logística optimizada: acceso directo para camiones de producción, zona de catering separada del área de rodaje, y cuarto de vestuario con espejos profesionales y aire acondicionado independiente.
+                  </p>
+                </div>
+              </section>
+
+              <!-- Amenidades técnicas -->
+              <section class="mt-8 border-b border-zinc-800 pb-8">
+                <h3 class="text-lg font-semibold text-white mb-5">Qué ofrece el lugar</h3>
+                <div id="loc-amenities" class="grid gap-0 sm:grid-cols-2">
+                  <!-- Rellenado por JS -->
+                </div>
+              </section>
+
+              <!-- Reseñas -->
+              <section class="mt-8 pb-4">
+                <div class="flex flex-wrap items-end justify-between gap-3 mb-5">
+                  <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+                    <i data-lucide="star" class="h-5 w-5 fill-amber-400 text-amber-400"></i>
+                    <span id="reviews-heading">4.92 · 38 reseñas de productores</span>
+                  </h3>
+                </div>
+                <div id="loc-reviews" class="rounded-xl border border-zinc-800 bg-zinc-900/30 overflow-hidden">
+                  <!-- Rellenado por JS -->
+                </div>
+              </section>
+            </div>
+
+            <!-- COLUMNA DERECHA ~35% — Caja de reserva -->
+            <aside class="lg:w-[340px] lg:shrink-0 lg:flex-[1]">
+              <div class="booking-sticky rounded-2xl border border-zinc-700/80 bg-zinc-900/60 p-6 shadow-2xl shadow-black/30 backdrop-blur-sm">
+                <div class="flex items-baseline gap-1.5">
+                  <span id="booking-price" class="text-2xl font-semibold text-white">$920</span>
+                  <span class="text-sm text-zinc-400">/ jornada de filmación</span>
+                </div>
+
+                <form id="booking-form" class="mt-5 space-y-3">
+                  <div class="grid grid-cols-2 overflow-hidden rounded-xl border border-zinc-700">
+                    <div class="border-r border-zinc-700 p-3">
+                      <label for="fecha-entrada" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Entrada rodaje</label>
+                      <input id="fecha-entrada" type="date" required class="mt-1 w-full bg-transparent text-sm text-zinc-100 focus:outline-none [color-scheme:dark]" />
+                    </div>
+                    <div class="p-3">
+                      <label for="fecha-salida" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Salida rodaje</label>
+                      <input id="fecha-salida" type="date" required class="mt-1 w-full bg-transparent text-sm text-zinc-100 focus:outline-none [color-scheme:dark]" />
+                    </div>
+                  </div>
+
+                  <div class="rounded-xl border border-zinc-700 p-3">
+                    <label for="crew-size" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Tamaño de crew</label>
+                    <select id="crew-size" class="mt-1 w-full bg-transparent text-sm text-zinc-100 focus:outline-none cursor-pointer">
+                      <option value="5">Hasta 5 personas</option>
+                      <option value="10">6 – 10 personas</option>
+                      <option value="20">11 – 20 personas</option>
+                      <option value="30" selected>21 – 30 personas</option>
+                      <option value="50">Más de 30 (consultar)</option>
+                    </select>
+                  </div>
+
+                  <div class="rounded-xl border border-zinc-700 p-3">
+                    <label for="proyecto-destino-loc" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Proyecto activo</label>
+                    <select id="proyecto-destino-loc" class="mt-1 w-full bg-transparent text-sm text-zinc-100 focus:outline-none cursor-pointer"></select>
+                  </div>
+
+                  <button type="submit" class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+                    Vincular a Proyecto / Reservar
+                  </button>
+                </form>
+
+                <p class="mt-4 text-center text-[11px] text-zinc-500">
+                  No se realizará ningún cargo hasta vincular con un proyecto activo en FrameFlow.
+                </p>
+
+                <ul class="mt-5 space-y-2.5 border-t border-zinc-800 pt-5 text-xs text-zinc-400">
+                  <li class="flex items-center gap-2">
+                    <i data-lucide="shield-check" class="h-4 w-4 text-cyan-400 shrink-0"></i>
+                    Permisos de rodaje gestionados por la plataforma
+                  </li>
+                  <li class="flex items-center gap-2">
+                    <i data-lucide="clock" class="h-4 w-4 text-cyan-400 shrink-0"></i>
+                    Jornada estándar: 10 h · horas extra cotizables
+                  </li>
+                </ul>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200 shadow-2xl toast-show" role="status"></div>
+
+  <script src="db.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    const { STATUS_META } = FrameFlowDB;
+    let currentLocId = null;
+
+    const LOCACIONES = [
+      {
+        id: 'loc-001',
+        nombre: 'Estudio Ciclorama Blanco',
+        tituloDisplay: 'Estudio ciclorama profesional en Urdesa',
+        reputacion: { estrellas: 4.9, resenas: 23 },
+        verificado: true,
+        destacado: false,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
+        precioJornada: 680,
+        tipoEspacio: 'Estudio interior de filmación',
+        capacidadLinea: 'Apto para equipos de hasta 15 personas · 1 baño · Área de control',
+        imagenes: [
+          'https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Ciclorama infinito de 8×6 m con piso epóxico y paredes curvas para keying limpio. Iluminación base DMX preinstalada en grid superior.',
+          'Ideal para spots de producto, entrevistas corporativas y contenido digital. Cabina de control con vista directa al set.',
+          'Acceso para vans de equipo por puerta lateral reforzada; estacionamiento en sitio para 4 vehículos.',
+        ],
+        amenidades: [
+          { icon: 'truck', label: 'Parqueadero para camiones y vans' },
+          { icon: 'zap', label: 'Conexiones eléctricas reforzadas (63A)' },
+          { icon: 'snowflake', label: 'Aire acondicionado central' },
+          { icon: 'shirt', label: 'Cuarto para cambio de vestuario' },
+          { icon: 'wifi', label: 'Wifi de alta velocidad (500 Mbps)' },
+        ],
+        resenas: [
+          { autor: 'Laura M.', texto: 'El ciclorama quedó impecable en cámara. Cero rebote en chroma y el staff del edificio coordinó silencio en pisos adyacentes.' },
+          { autor: 'Pablo R.', texto: 'Conexión eléctrica suficiente para 3 HMIs sin derivar. Volveremos para la campaña Q3.' },
+        ],
+      },
+      {
+        id: 'loc-002',
+        nombre: 'Apartamento Minimalista',
+        tituloDisplay: 'Encantador departamento en Puerto Santa Ana',
+        reputacion: { estrellas: 4.92, resenas: 38 },
+        verificado: true,
+        destacado: true,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' },
+        precioJornada: 920,
+        tipoEspacio: 'Departamento entero de filmación',
+        capacidadLinea: 'Apto para equipos de hasta 30 personas · 2 baños · Zona de catering',
+        imagenes: [
+          'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Ubicado en el corazón de Puerto Santa Ana, este departamento combina arquitectura colonial restaurada con acabados modernos pensados para rodajes de alto estándar. Techos de 3.2 m de altura libre permiten montaje de truss ligero y rigs aéreos sin comprometer la estética del set.',
+          'El mobiliario mezcla piezas coloniales auténticas con módulos contemporáneos desmontables, ideal para comerciales, videoclips y fiction de interior. La planta abierta facilita reconfiguración de blocking en menos de una hora.',
+          'Logística optimizada: acceso directo para camiones de producción, zona de catering separada del área de rodaje, y cuarto de vestuario con espejos profesionales y aire acondicionado independiente.',
+        ],
+        amenidades: [
+          { icon: 'truck', label: 'Parqueadero para camiones' },
+          { icon: 'zap', label: 'Conexiones eléctricas reforzadas' },
+          { icon: 'snowflake', label: 'Aire acondicionado' },
+          { icon: 'shirt', label: 'Cuarto para cambio de vestuario' },
+          { icon: 'wifi', label: 'Wifi de alta velocidad' },
+        ],
+        resenas: [
+          { autor: 'Marcos G.', texto: 'Excelente acústica interna, el parqueadero facilitó la descarga de equipos. La luz natural de la tarde es cinematográfica.' },
+          { autor: 'Sofía V.', texto: 'Rodamos un comercial de 12 h; el área de catering funcionó perfecto para el crew. Locación verificada y sin sorpresas.' },
+          { autor: 'Diego A.', texto: 'Altura de techos ideal para crane interior. El propietario no interfirió — todo vía FrameFlow.' },
+        ],
+      },
+      {
+        id: 'loc-003',
+        nombre: 'Hacienda Rústica',
+        tituloDisplay: 'Hacienda rústica con jardines en Samborondón',
+        reputacion: { estrellas: 4.7, resenas: 18 },
+        verificado: true,
+        destacado: true,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Samborondón' },
+        precioJornada: 1450,
+        tipoEspacio: 'Locación exterior e interior — hacienda completa',
+        capacidadLinea: 'Equipos grandes hasta 80 personas · 4 baños · Cocina industrial',
+        imagenes: [
+          'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Amplia hacienda campestre con patios empedrados, porches de madera y vegetación madura para exteriores de época o contemporáneos.',
+          'Interior con salas de doble altura y chimenea funcional. Generadores externos permitidos en zona designada.',
+          'Estacionamiento para vehículos de arte, maquillaje y catering dentro del perímetro privado.',
+        ],
+        amenidades: [
+          { icon: 'truck', label: 'Parqueadero amplio para flota de producción' },
+          { icon: 'zap', label: 'Tablero trifásico para generadores' },
+          { icon: 'trees', label: 'Jardines y exteriores versátiles' },
+          { icon: 'utensils', label: 'Cocina para catering' },
+          { icon: 'wifi', label: 'Wifi en áreas comunes' },
+        ],
+        resenas: [
+          { autor: 'Carolina T.', texto: 'Perfecta para el documental: amaneceres increíbles y cero ruido urbano.' },
+          { autor: 'Andrés L.', texto: 'Entrada cómoda para tracto y carrozas. La producción de arte montó escenarios en el patio norte.' },
+        ],
+      },
+      {
+        id: 'loc-004',
+        nombre: 'Casona Colonial',
+        tituloDisplay: 'Casona colonial en el Centro Histórico',
+        reputacion: { estrellas: 5.0, resenas: 12 },
+        verificado: true,
+        destacado: true,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Centro Histórico' },
+        precioJornada: 1100,
+        tipoEspacio: 'Casa colonial completa para filmación',
+        capacidadLinea: 'Hasta 40 personas · 3 baños · Patio central cubierto',
+        imagenes: [
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1600585154363-7078838ed7bf?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687644-c7171b42498f?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753086-00f18fb576b9?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600047509358-9dc75507daeb?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Casona patrimonial con balcones de hierro forjado, pisos de madera original y murales restaurados. Ambiente premium para period pieces.',
+          'Ventanas altas con luz cenital filtrada; ideal para dramatúrgicas y spots premium.',
+          'Coordinación de permisos municipales incluida en tarifa base para rodajes en fachada.',
+        ],
+        amenidades: [
+          { icon: 'landmark', label: 'Arquitectura patrimonial certificada' },
+          { icon: 'zap', label: 'Conexiones eléctricas actualizadas' },
+          { icon: 'snowflake', label: 'Climatización en salas principales' },
+          { icon: 'shirt', label: 'Camerinos en planta alta' },
+          { icon: 'wifi', label: 'Wifi de alta velocidad' },
+        ],
+        resenas: [
+          { autor: 'Elena P.', texto: 'La mejor locación colonial que hemos usado en Guayaquil. Permisos sin fricción vía FrameFlow.' },
+        ],
+      },
+      {
+        id: 'loc-005',
+        nombre: 'Loft Creativo Vía a la Costa',
+        tituloDisplay: 'Loft creativo industrial — Vía a la Costa',
+        reputacion: { estrellas: 4.6, resenas: 31 },
+        verificado: true,
+        destacado: false,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Vía a la Costa' },
+        precioJornada: 780,
+        tipoEspacio: 'Loft industrial para filmación',
+        capacidadLinea: 'Hasta 25 personas · 2 baños · Mezzanine para equipo',
+        imagenes: [
+          'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1604328698692-f76ea9498e76?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Loft de doble altura con vigas expuestas, concreto pulido y ventanales al norte. Estética industrial lista para rodar.',
+          'Mezzanine reforzada para cámara y dirección. Paredes modulares para control de rebote.',
+          'Acceso 24 h en jornadas contratadas; seguridad perimetral.',
+        ],
+        amenidades: [
+          { icon: 'truck', label: 'Parqueadero techado' },
+          { icon: 'zap', label: 'Circuito dedicado para iluminación' },
+          { icon: 'snowflake', label: 'Aire acondicionado' },
+          { icon: 'shirt', label: 'Área de vestuario' },
+          { icon: 'wifi', label: 'Fibra óptica 1 Gbps' },
+        ],
+        resenas: [
+          { autor: 'Marcos G.', texto: 'Look industrial sin set dressing excesivo. Muy buena relación espacio/precio.' },
+          { autor: 'Rina K.', texto: 'El mezzanine salvó nuestro monitoring en un spot muy apretado de tiempo.' },
+        ],
+      },
+      {
+        id: 'loc-006',
+        nombre: 'Terraza Skyline Urdesa',
+        tituloDisplay: 'Terraza skyline con vista panorámica — Urdesa',
+        reputacion: { estrellas: 4.5, resenas: 27 },
+        verificado: false,
+        destacado: false,
+        ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
+        precioJornada: 540,
+        tipoEspacio: 'Terraza exterior para filmación',
+        capacidadLinea: 'Hasta 12 personas · 1 baño · Green room interior',
+        imagenes: [
+          'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200&h=800&fit=crop',
+          'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=600&h=400&fit=crop',
+          'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=600&h=400&fit=crop',
+        ],
+        descripcion: [
+          'Terraza en último piso con vista 270° al skyline de Guayaquil. Atardeceres de alto impacto visual.',
+          'Barandales certificados para rigging ligero. Superficie antideslizante para trípodes.',
+          'Green room climatizado en planta inferior con acceso por ascensor de servicio.',
+        ],
+        amenidades: [
+          { icon: 'sun', label: 'Luz dorada natural' },
+          { icon: 'zap', label: 'Tomas eléctricas perimetrales' },
+          { icon: 'wind', label: 'Protección lateral para viento' },
+          { icon: 'shirt', label: 'Green room interior' },
+          { icon: 'wifi', label: 'Wifi de alta velocidad' },
+        ],
+        resenas: [
+          { autor: 'Tomás H.', texto: 'La vista al atardecer vendió el spot. Llegar temprano para pre-light.' },
+        ],
+      },
+    ];
+
+    function escapeHtml(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
+    function formatPrice(n) {
+      return '$' + n.toLocaleString('en-US');
+    }
+
+    function getLocFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const found = LOCACIONES.find((l) => l.id === id);
+      return found || LOCACIONES.find((l) => l.id === 'loc-002');
+    }
+
+    function renderMosaic(imagenes, nombre) {
+      const mosaic = document.getElementById('photo-mosaic');
+      const imgs = imagenes.slice(0, 5);
+      while (imgs.length < 5) imgs.push(imgs[0]);
+
+      mosaic.innerHTML = imgs.map((src, i) => {
+        const cls = i === 0 ? 'mosaic-main' : '';
+        const alt = `${nombre} — foto ${i + 1}`;
+        return `
+          <button type="button" class="${cls}" aria-label="${escapeHtml(alt)}">
+            <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" />
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderAmenities(list) {
+      document.getElementById('loc-amenities').innerHTML = list.map((a) => `
+        <div class="amenity-row flex items-center gap-4 py-4 pr-4">
+          <i data-lucide="${escapeHtml(a.icon)}" class="h-6 w-6 text-zinc-300 shrink-0"></i>
+          <span class="text-sm text-zinc-200">${escapeHtml(a.label)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderReviews(loc) {
+      const rep = loc.reputacion;
+      document.getElementById('reviews-heading').textContent =
+        `${rep.estrellas.toFixed(2)} · ${rep.resenas} reseñas de productores`;
+
+      document.getElementById('loc-reviews').innerHTML = loc.resenas.map((r) => `
+        <article class="review-card px-5 py-4">
+          <p class="text-sm font-semibold text-zinc-200">${escapeHtml(r.autor)}</p>
+          <p class="mt-2 text-sm text-zinc-400 leading-relaxed">${escapeHtml(r.texto)}</p>
+        </article>
+      `).join('');
+    }
+
+    function renderLoc(loc) {
+      document.title = `${loc.tituloDisplay || loc.nombre} | FrameFlow`;
+      document.getElementById('loc-title').textContent = loc.tituloDisplay || loc.nombre;
+
+      const rep = loc.reputacion;
+      document.getElementById('loc-rating').innerHTML = `
+        <i data-lucide="star" class="h-4 w-4 fill-amber-400 text-amber-400"></i>
+        <span>${rep.estrellas.toFixed(2)}</span>
+        <span class="text-zinc-500 font-normal">·</span>
+        <span class="text-zinc-400 underline decoration-zinc-600 underline-offset-2">${rep.resenas} reseñas</span>
+      `;
+
+      const badges = [];
+      if (loc.verificado) {
+        badges.push(`
+          <span class="inline-flex items-center gap-1 text-cyan-400">
+            <i data-lucide="badge-check" class="h-4 w-4"></i>
+            Locación verificada
+          </span>
+        `);
+      }
+      if (loc.destacado) {
+        badges.push(`<span class="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-400">Destacado</span>`);
+      }
+      document.getElementById('loc-badges').innerHTML = badges.join('');
+
+      document.getElementById('loc-location').innerHTML = `
+        <i data-lucide="map-pin" class="h-3.5 w-3.5"></i>
+        ${escapeHtml(loc.ubicacion.ciudad)}, ${escapeHtml(loc.ubicacion.pais)}
+      `;
+
+      renderMosaic(loc.imagenes, loc.nombre);
+      document.getElementById('loc-space-type').textContent = loc.tipoEspacio;
+      document.getElementById('loc-capacity-line').textContent = loc.capacidadLinea;
+
+      document.getElementById('loc-description').innerHTML = loc.descripcion
+        .map((p) => `<p>${escapeHtml(p)}</p>`)
+        .join('');
+
+      renderAmenities(loc.amenidades);
+      renderReviews(loc);
+      document.getElementById('booking-price').textContent = formatPrice(loc.precioJornada);
+
+      const highlight = document.getElementById('loc-highlight');
+      if (rep.estrellas >= 4.8) {
+        highlight.classList.remove('hidden');
+      } else {
+        highlight.classList.add('hidden');
+      }
+    }
+
+    function showToast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => el.classList.add('hidden'), 2800);
+    }
+
+
+    function fillProjectSelect() {
+      const sel = document.getElementById('proyecto-destino-loc');
+      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      sel.innerHTML = '<option value="">Seleccionar proyecto...</option>' +
+        projects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)} (${STATUS_META[p.status]?.label})</option>`).join('');
+    }
+
+    function renderAssignProjectMenu(locId) {
+      const menu = document.getElementById('assign-project-menu');
+      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      menu.innerHTML = `
+        <button type="button" class="assign-opt w-full px-4 py-2.5 text-left text-sm text-cyan-400 hover:bg-zinc-800 flex items-center gap-2" data-project-id="new">
+          <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
+        </button>
+        <div class="my-1 border-t border-zinc-800"></div>
+        ${projects.map((p) => `
+          <button type="button" class="assign-opt w-full px-4 py-2.5 text-left hover:bg-zinc-800" data-project-id="${p.id}">
+            <span class="text-sm text-zinc-200">${escapeHtml(p.name)}</span>
+            <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || '')}</span>
+          </button>
+        `).join('')}
+      `;
+      menu.querySelectorAll('.assign-opt').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const pid = btn.dataset.projectId;
+          if (pid === 'new') { window.location.href = 'index.html'; return; }
+          FrameFlowDB.assignResource(pid, 'locacion', locId);
+          showToast('Añadido con éxito al proyecto');
+          menu.classList.add('hidden');
+        });
+      });
+      lucide.createIcons();
+    }
+
+    function bindActions(loc) {
+      currentLocId = loc.id;
+      document.getElementById('btn-share').addEventListener('click', async () => {
+        const url = window.location.href;
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: loc.tituloDisplay || loc.nombre, url });
+          } else {
+            await navigator.clipboard.writeText(url);
+            showToast('Enlace copiado al portapapeles');
+          }
+        } catch {
+          showToast('No se pudo compartir');
+        }
+      });
+
+      const assignMenu = document.getElementById('assign-project-menu');
+      renderAssignProjectMenu(loc.id);
+      document.getElementById('btn-assign-project').addEventListener('click', (e) => {
+        e.stopPropagation();
+        assignMenu.classList.toggle('hidden');
+      });
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#assign-project-wrap')) assignMenu.classList.add('hidden');
+      });
+
+      document.getElementById('btn-all-photos').addEventListener('click', () => {
+        showToast(`Galería completa: ${loc.imagenes.length}+ fotos (demo)`);
+      });
+
+      document.getElementById('booking-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const proj = document.getElementById('proyecto-destino-loc').value;
+        if (!proj) { showToast('Selecciona un proyecto activo'); return; }
+        FrameFlowDB.assignResource(proj, 'locacion', loc.id);
+        showToast('Añadido con éxito al proyecto');
+      });
+    }
+
+    let dateRangeState = { anchor: null, end: null };
+
+    function bindDateRangeInputs() {
+      const startEl = document.getElementById('fecha-entrada');
+      const endEl = document.getElementById('fecha-salida');
+      [startEl, endEl].forEach((input) => {
+        input.addEventListener('change', () => {
+          if (!startEl.value) return;
+          if (!endEl.value || endEl.value < startEl.value) endEl.value = startEl.value;
+          if (startEl.value > endEl.value) {
+            const t = startEl.value;
+            startEl.value = endEl.value;
+            endEl.value = t;
+          }
+        });
+      });
+    }
+
+    function setDefaultDates() {
+      const today = new Date();
+      const entrada = new Date(today);
+      entrada.setDate(entrada.getDate() + 7);
+      const salida = new Date(entrada);
+      salida.setDate(salida.getDate() + 1);
+      const fmt = (d) => d.toISOString().slice(0, 10);
+      document.getElementById('fecha-entrada').value = fmt(entrada);
+      document.getElementById('fecha-salida').value = fmt(salida);
+    }
+
+    const loc = getLocFromUrl();
+    const catalogView = sessionStorage.getItem('ff_catalog_view') || 'locaciones';
+    document.getElementById('back-catalog').href = FrameFlowDB.catalogBackUrl(catalogView);
+    FrameFlowSidebar.mount('sidebar-mount', 'catalogo');
+    renderLoc(loc);
+    fillProjectSelect();
+    bindActions(loc);
+    bindDateRangeInputs();
+    setDefaultDates();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
