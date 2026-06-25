@@ -627,6 +627,9 @@
       cast: { edad: '', tipoActor: '', habilidades: '', estatura: '' },
     };
 
+    /** Base URL del servidor logístico Node.js */
+    const API_BASE = 'http://localhost:3000';
+
     let activeTab = 'locaciones';
     let locFilters = { ...FILTER_DEFAULTS.loc };
     let castFilters = { ...FILTER_DEFAULTS.cast };
@@ -1611,6 +1614,32 @@
        ============================================================ */
     let activeSaveBtn = null;
 
+    /** Obtiene proyectos activos desde el backend (sin finalizados ni archivados) */
+    async function fetchActiveProjects() {
+      const res = await fetch(`${API_BASE}/api/proyectos`);
+      if (!res.ok) throw new Error('No se pudieron cargar los proyectos');
+      const payload = await res.json();
+      const list = Array.isArray(payload.data) ? payload.data : [];
+      return list.filter((p) => !['finalizado', 'archivado'].includes(p.estado || p.status));
+    }
+
+    /** Vincula una locación o casting a un proyecto vía API REST */
+    async function vincularRecursoAProyecto(projectId, recursoId, tipo) {
+      const res = await fetch(
+        `${API_BASE}/api/proyectos/${encodeURIComponent(projectId)}/vincular`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ recursoId, tipo }),
+        }
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.error || 'No se pudo vincular el recurso');
+      }
+      return payload;
+    }
+
     function closeAssignMenu() {
       document.getElementById('assign-menu').classList.add('hidden');
       assignMenuContext = null;
@@ -1620,10 +1649,9 @@
       }
     }
 
-    function populateAssignMenu() {
+    async function populateAssignMenu() {
       const menu = document.getElementById('assign-menu');
       const { STATUS_META } = FrameFlowDB;
-      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
       const lists = FrameFlowDB.getInterestLists();
 
       menu.innerHTML = `
@@ -1633,13 +1661,8 @@
             <span class="flex-1">Vincular a un Proyecto...</span>
             <i data-lucide="chevron-down" class="save-menu-chevron h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform"></i>
           </button>
-          <div class="save-menu-panel hidden max-h-44 overflow-y-auto border-t border-zinc-800/80 bg-zinc-950/40">
-            ${projects.length ? projects.map((p) => `
-              <button type="button" data-action="project" data-project-id="${escapeHtml(p.id)}" class="assign-project-option w-full px-3 py-2 text-left hover:bg-zinc-800/80 transition-colors">
-                <span class="text-xs text-zinc-200">${escapeHtml(p.name)}</span>
-                <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || p.status)}</span>
-              </button>
-            `).join('') : '<p class="px-3 py-2 text-[11px] text-zinc-500">No hay proyectos activos</p>'}
+          <div class="save-menu-panel hidden max-h-44 overflow-y-auto border-t border-zinc-800/80 bg-zinc-950/40" data-projects-panel>
+            <p class="px-3 py-2 text-[11px] text-zinc-500">Cargando proyectos...</p>
           </div>
         </div>
         <div class="save-menu-section border-t border-zinc-800/80" data-section="lists">
@@ -1663,9 +1686,31 @@
         </div>
       `;
       lucide.createIcons();
+
+      const projectsPanel = menu.querySelector('[data-projects-panel]');
+      let projects = [];
+      try {
+        projects = await fetchActiveProjects();
+      } catch (_) {
+        projects = [];
+      }
+
+      if (projectsPanel) {
+        projectsPanel.innerHTML = projects.length
+          ? projects.map((p) => {
+              const estado = p.estado || p.status || '';
+              const nombre = p.nombre || p.name || '';
+              return `
+              <button type="button" data-action="project" data-project-id="${escapeHtml(p.id)}" class="assign-project-option w-full px-3 py-2 text-left hover:bg-zinc-800/80 transition-colors">
+                <span class="text-xs text-zinc-200">${escapeHtml(nombre)}</span>
+                <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[estado]?.label || estado)}</span>
+              </button>`;
+            }).join('')
+          : '<p class="px-3 py-2 text-[11px] text-zinc-500">No hay proyectos activos</p>';
+      }
     }
 
-    function openAssignMenu(anchorBtn) {
+    async function openAssignMenu(anchorBtn) {
       const menu = document.getElementById('assign-menu');
       const rect = anchorBtn.getBoundingClientRect();
       assignMenuContext = {
@@ -1676,7 +1721,6 @@
       if (activeSaveBtn && activeSaveBtn !== anchorBtn) activeSaveBtn.classList.remove('is-active');
       activeSaveBtn = anchorBtn;
       anchorBtn.classList.add('is-active');
-      populateAssignMenu();
       menu.classList.remove('hidden');
       const menuW = 260;
       let left = rect.right - menuW;
@@ -1685,6 +1729,7 @@
       if (top + 200 > window.innerHeight) top = rect.top - 8;
       menu.style.top = `${top}px`;
       menu.style.left = `${left}px`;
+      await populateAssignMenu();
     }
 
     function toggleSaveMenuSection(sectionEl) {
@@ -1729,10 +1774,20 @@
         const projectOpt = e.target.closest('[data-action="project"]');
         if (projectOpt && assignMenuContext) {
           e.stopPropagation();
-          const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'actor';
-          const result = FrameFlowDB.assignResourceWithBudget(projectOpt.dataset.projectId, resType, assignMenuContext.itemId);
-          showCatalogToast(result.overBudget ? 'Vinculado — alerta: presupuesto excedido' : 'Vinculado al proyecto con éxito');
-          closeAssignMenu();
+          const tipo = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'casting';
+          const projectId = projectOpt.dataset.projectId;
+          const recursoId = assignMenuContext.itemId;
+          projectOpt.classList.add('opacity-50', 'pointer-events-none');
+
+          vincularRecursoAProyecto(projectId, recursoId, tipo)
+            .then(() => {
+              showCatalogToast('Recurso vinculado exitosamente a la mesa de trabajo');
+              closeAssignMenu();
+            })
+            .catch((err) => {
+              showCatalogToast(err.message || 'No se pudo vincular el recurso');
+              projectOpt.classList.remove('opacity-50', 'pointer-events-none');
+            });
           return;
         }
 

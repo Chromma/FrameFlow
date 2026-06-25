@@ -282,6 +282,11 @@
   <script>
     const { COLOR_PALETTE, TYPE_LABELS, STATUS_META, formatBudget, getEffectiveProgress } = FrameFlowDB;
 
+    const API_BASE = 'http://localhost:3000';
+
+    /** Proyectos cargados desde el servidor Node.js */
+    let proyectos = [];
+
     let alertFilter = 'all';
     let alertProjectFilter = '';
     let alertSeverityFilter = '';
@@ -318,11 +323,76 @@
       return hay.includes(q.toLowerCase());
     }
 
+    /** Normaliza un proyecto del API REST al formato usado por el Dashboard */
+    function mapProyectoFromApi(raw) {
+      return {
+        id: raw.id,
+        name: raw.nombre,
+        client: raw.cliente,
+        type: raw.tipoProduccion,
+        status: raw.estado || 'planificacion',
+        budget: raw.presupuestoBase ?? 0,
+        start: raw.fechaInicioRodaje || '',
+        end: raw.fechaFinRodaje || '',
+        colorIndex: Number(raw.colorAsignado ?? 0),
+        description: raw.descripcion || '',
+        tareas: Array.isArray(raw.tareas) ? raw.tareas : [],
+        progress: raw.progreso ?? 0,
+      };
+    }
+
+    /** Progreso derivado de tareas completadas en la respuesta del servidor */
+    function calcProgressFromServerTasks(p) {
+      if (p.tareas && p.tareas.length) return getEffectiveProgress(p);
+      return p.progress ?? 0;
+    }
+
+    function findProject(id) {
+      return proyectos.find((p) => p.id === id) || null;
+    }
+
+    async function loadProjectsFromServer() {
+      const grid = document.getElementById('projects-grid');
+      const countEl = document.getElementById('projects-count');
+      countEl.textContent = 'Cargando proyectos…';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/proyectos`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!json.ok) throw new Error(json.error || 'Respuesta inválida del servidor');
+
+        proyectos = (json.data || []).map(mapProyectoFromApi);
+        populateAlertProjectFilter();
+        renderProjects();
+      } catch (err) {
+        console.error('[Dashboard] Error al cargar proyectos:', err);
+        proyectos = [];
+        grid.innerHTML = '';
+        document.getElementById('projects-empty').classList.remove('hidden');
+        document.getElementById('projects-empty').textContent =
+          'No se pudo conectar con el servidor. Verifica que esté corriendo en http://localhost:3000';
+        countEl.textContent = 'Sin conexión al servidor';
+      }
+    }
+
+    async function createProjectOnServer(payload) {
+      const res = await fetch(`${API_BASE}/api/proyectos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || `Error HTTP ${res.status}`);
+      }
+      return mapProyectoFromApi(json.data);
+    }
+
     function populateAlertProjectFilter() {
       const sel = document.getElementById('alert-filter-project');
-      const projects = FrameFlowDB.getProjects();
       sel.innerHTML = '<option value="">Todos los proyectos</option>' +
-        projects.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
+        proyectos.map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join('');
       sel.value = alertProjectFilter;
     }
 
@@ -346,7 +416,7 @@
       }
       empty.classList.add('hidden');
 
-      const projects = FrameFlowDB.getProjects();
+      const projects = proyectos;
       log.innerHTML = list.map((a) => {
         const proj = projects.find((p) => p.id === a.projectId);
         const projLabel = proj ? proj.name : 'General';
@@ -398,7 +468,6 @@
     }
 
     function renderProjects() {
-      const proyectos = FrameFlowDB.getProjects();
       const grid = document.getElementById('projects-grid');
       const empty = document.getElementById('projects-empty');
       const countEl = document.getElementById('projects-count');
@@ -419,6 +488,11 @@
       if (visible.length === 0) {
         grid.innerHTML = '';
         empty.classList.remove('hidden');
+        if (proyectos.length === 0 && !searchQuery && projectStatusFilter === 'all') {
+          empty.textContent = 'No hay proyectos registrados. Crea uno con «Nuevo Proyecto».';
+        } else {
+          empty.textContent = 'Ningún proyecto coincide con los filtros.';
+        }
         return;
       }
       empty.classList.add('hidden');
@@ -427,7 +501,7 @@
         const color = getColor(p.colorIndex);
         const st = STATUS_META[p.status] || STATUS_META.planificacion;
         const faded = p.status === 'finalizado' || p.status === 'archivado' ? 'opacity-80' : '';
-        const progress = getEffectiveProgress(p);
+        const progress = calcProgressFromServerTasks(p);
         return `
           <article data-project-id="${p.id}" class="project-card flex flex-col rounded-xl border ${color.border} bg-zinc-900/50 p-5 hover:shadow-lg hover:shadow-cyan-500/5 transition-all cursor-pointer ${faded}" tabindex="0" role="button">
             <div class="flex items-start justify-between gap-2">
@@ -452,7 +526,7 @@
     }
 
     function openQuickView(projectId) {
-      const p = FrameFlowDB.getProject(projectId);
+      const p = findProject(projectId);
       if (!p) return;
       const color = getColor(p.colorIndex);
       const st = STATUS_META[p.status];
@@ -465,7 +539,7 @@
       document.getElementById('qv-status').textContent = st.label;
       document.getElementById('qv-status').className = `font-medium ${st.badge.split(' ').find((c) => c.startsWith('text-')) || 'text-zinc-300'}`;
       document.getElementById('qv-dates').textContent = `${formatDateES(p.start)} → ${formatDateES(p.end)}`;
-      const progress = getEffectiveProgress(p);
+      const progress = calcProgressFromServerTasks(p);
       document.getElementById('qv-progress-pct').textContent = `${progress}%`;
       const bar = document.getElementById('qv-progress-bar');
       bar.style.width = `${progress}%`;
@@ -590,39 +664,64 @@
         document.getElementById('calendar-dropdown').classList.add('hidden');
       });
 
-      document.getElementById('form-nuevo-proyecto').addEventListener('submit', (e) => {
+      document.getElementById('form-nuevo-proyecto').addEventListener('submit', async (e) => {
         e.preventDefault();
+
         const name = document.getElementById('project-name').value.trim();
         const client = document.getElementById('project-client').value.trim();
         const type = document.getElementById('project-type').value;
         const start = document.getElementById('project-start').value;
         const end = document.getElementById('project-end').value;
-        const budget = document.getElementById('project-budget').value;
+        const budget = Number(document.getElementById('project-budget').value) || 0;
         const description = document.getElementById('project-description').value.trim();
-        const colorIndex = document.getElementById('project-color').value;
+        const colorIndex = Number(document.getElementById('project-color').value);
 
-        FrameFlowDB.addClient(client);
-        FrameFlowDB.createProject({ name, client, type, start, end, budget, description, colorIndex, progress: 0, status: 'planificacion' });
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const prevLabel = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creando…';
 
-        refreshClientesDatalist();
-        populateAlertProjectFilter();
-        renderProjects();
-        document.getElementById('form-nuevo-proyecto').reset();
-        document.getElementById('project-budget').value = '0';
-        closeNuevoModal();
+        try {
+          const nuevo = await createProjectOnServer({
+            nombre: name,
+            cliente: client,
+            tipoProduccion: type,
+            colorAsignado: colorIndex,
+            presupuestoBase: budget,
+            fechaInicioRodaje: start,
+            fechaFinRodaje: end,
+            descripcion: description,
+            estado: 'planificacion',
+            tareas: [],
+          });
+
+          proyectos.unshift(nuevo);
+          FrameFlowDB.addClient(client);
+          refreshClientesDatalist();
+          populateAlertProjectFilter();
+          renderProjects();
+          document.getElementById('form-nuevo-proyecto').reset();
+          document.getElementById('project-budget').value = '0';
+          closeNuevoModal();
+        } catch (err) {
+          console.error('[Dashboard] Error al crear proyecto:', err);
+          window.alert(err.message || 'No se pudo crear el proyecto. ¿Está activo el servidor en localhost:3000?');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.textContent = prevLabel;
+        }
       });
     }
 
     FrameFlowSidebar.mount('sidebar-mount', 'dashboard');
     document.getElementById('header-date').textContent = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     refreshClientesDatalist();
-    populateAlertProjectFilter();
     renderAlerts();
-    renderProjects();
     bindAlerts();
     bindProjects();
     bindCalendar();
     bindModals();
+    loadProjectsFromServer();
     lucide.createIcons();
   </script>
 </body>

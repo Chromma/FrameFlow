@@ -1,0 +1,19 @@
+[
+  {
+    "id": "p-1782368415214",
+    "nombre": "Demo",
+    "cliente": "Test",
+    "tipoProduccion": "comercial",
+    "colorAsignado": 0,
+    "presupuestoBase": 0,
+    "fechaInicioRodaje": "",
+    "fechaFinRodaje": "",
+    "tareas": [],
+    "locacionesVinculadas": [],
+    "castingVinculado": [],
+    "descripcion": "",
+    "estado": "planificacion",
+    "progreso": 0,
+    "creadoEn": "2026-06-25T06:20:15.215Z"
+  }
+]
