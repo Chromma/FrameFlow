@@ -7,40 +7,279 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  </style>
 </head>
 <body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="configuracion">
   <div class="flex min-h-screen">
     <div id="sidebar-mount" class="contents"></div>
-    <main class="flex-1 p-6 sm:p-8">
-      <button id="menu-toggle" type="button" class="lg:hidden mb-4 rounded-lg border border-zinc-700 p-2"><i data-lucide="menu" class="h-5 w-5"></i></button>
-      <h1 class="text-2xl font-semibold text-white flex items-center gap-2">
-        <i data-lucide="settings" class="h-7 w-7 text-cyan-400"></i>
-        Configuración
-      </h1>
-      <p class="mt-2 text-zinc-500">Preferencias de cuenta, notificaciones y equipo.</p>
-      <div class="mt-8 max-w-lg space-y-4">
-        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-          <span class="text-sm">Alertas por email</span>
-          <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
-        </label>
-        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-          <span class="text-sm">Modo oscuro</span>
-          <input type="checkbox" checked disabled class="rounded border-zinc-600 bg-zinc-800 text-cyan-500" />
-        </label>
-        <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
-          <span class="text-sm">Luz Verde — avisos críticos</span>
-          <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
-        </label>
+    <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl px-4 py-4 sm:px-8">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300"><i data-lucide="menu" class="h-5 w-5"></i></button>
+          <div>
+            <h1 class="text-xl font-semibold text-white flex items-center gap-2">
+              <i data-lucide="settings" class="h-6 w-6 text-cyan-400"></i>
+              Configuración
+            </h1>
+            <p class="text-xs text-zinc-500 mt-0.5">Preferencias de productora y crew recurrente</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+        <div class="mx-auto max-w-3xl">
+          <!-- Pestañas -->
+          <div class="flex gap-1 rounded-xl border border-zinc-800 bg-zinc-900/50 p-1 mb-8" role="tablist">
+            <button type="button" id="tab-prefs" data-tab="prefs" class="config-tab flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors bg-zinc-800 text-zinc-100" role="tab" aria-selected="true">
+              Preferencias
+            </button>
+            <button type="button" id="tab-crew" data-tab="crew" class="config-tab flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors text-zinc-500 hover:text-zinc-200" role="tab" aria-selected="false">
+              Equipo Técnico / Crew Habitual
+            </button>
+          </div>
+
+          <!-- Panel Preferencias -->
+          <div id="panel-prefs" class="config-panel space-y-4">
+            <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+              <span class="text-sm">Alertas por email</span>
+              <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
+            </label>
+            <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+              <span class="text-sm">Modo oscuro</span>
+              <input type="checkbox" checked disabled class="rounded border-zinc-600 bg-zinc-800 text-cyan-500" />
+            </label>
+            <label class="flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+              <span class="text-sm">Luz Verde — avisos críticos</span>
+              <input type="checkbox" checked class="rounded border-zinc-600 bg-zinc-800 text-cyan-500 focus:ring-cyan-500/30" />
+            </label>
+          </div>
+
+          <!-- Panel Crew -->
+          <div id="panel-crew" class="config-panel hidden space-y-6">
+            <section class="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 sm:p-6">
+              <h2 class="text-base font-semibold text-white flex items-center gap-2 mb-1">
+                <i data-lucide="hard-hat" class="h-5 w-5 text-cyan-400"></i>
+                Gestión de Crew Recurrente
+              </h2>
+              <p class="text-xs text-zinc-500 mb-5">Registra miembros del equipo para reutilizarlos en hojas de llamado y costos logísticos.</p>
+
+              <form id="crew-form" class="space-y-3">
+                <div class="grid gap-3 sm:grid-cols-2">
+                  <div class="sm:col-span-2">
+                    <label for="crew-nombre" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Nombre</label>
+                    <input id="crew-nombre" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" placeholder="Ej. Carlos Mendoza" />
+                  </div>
+                  <div>
+                    <label for="crew-email" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Correo</label>
+                    <input id="crew-email" type="email" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" placeholder="nombre@productora.com" />
+                  </div>
+                  <div>
+                    <label for="crew-telefono" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Teléfono</label>
+                    <input id="crew-telefono" type="tel" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" placeholder="+593 99 000 0000" />
+                  </div>
+                  <div>
+                    <label for="crew-rol" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Rol / Cargo</label>
+                    <select id="crew-rol" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"></select>
+                  </div>
+                  <div>
+                    <label for="crew-contrato" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Tipo de contrato</label>
+                    <select id="crew-contrato" required class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20">
+                      <option value="planta">Planta</option>
+                      <option value="freelancer">Freelancer</option>
+                    </select>
+                  </div>
+                  <div id="crew-tarifa-wrap" class="hidden sm:col-span-2">
+                    <label for="crew-tarifa" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Tarifa estándar por jornada (USD)</label>
+                    <input id="crew-tarifa" type="number" min="0" step="50" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm text-cyan-400 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" placeholder="350" />
+                  </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                  <button type="submit" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-cyan-500">
+                    <i data-lucide="user-plus" class="h-4 w-4"></i>
+                    Guardar miembro
+                  </button>
+                  <button type="button" id="crew-form-reset" class="hidden rounded-xl border border-zinc-700 px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800">Cancelar edición</button>
+                </div>
+              </form>
+            </section>
+
+            <section class="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 sm:p-6">
+              <div class="flex items-center justify-between gap-3 mb-4">
+                <h3 class="text-sm font-semibold text-white">Miembros registrados</h3>
+                <span id="crew-count" class="text-[10px] text-zinc-500"></span>
+              </div>
+              <div id="crew-list" class="space-y-2"></div>
+              <p id="crew-empty" class="hidden py-8 text-center text-sm text-zinc-500 rounded-lg border border-dashed border-zinc-700">
+                Aún no hay crew registrado. Añade el primer miembro arriba.
+              </p>
+            </section>
+          </div>
+
+          <a href="index.html" class="inline-flex mt-10 items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
+            <i data-lucide="arrow-left" class="h-4 w-4"></i> Volver al Dashboard
+          </a>
+        </div>
       </div>
-      <a href="index.html" class="inline-flex mt-8 items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300">
-        <i data-lucide="arrow-left" class="h-4 w-4"></i> Volver al Dashboard
-      </a>
     </main>
   </div>
+
+  <div id="toast" class="fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900 px-4 py-3 text-sm text-emerald-400 shadow-2xl">Guardado</div>
+
   <script src="db.js"></script>
   <script src="sidebar.js"></script>
   <script>
+    const { CREW_ROLES, CREW_CONTRACTS, formatBudget } = FrameFlowDB;
+    let editingCrewId = null;
+
+    function escapeHtml(t) {
+      const d = document.createElement('div');
+      d.textContent = t;
+      return d.innerHTML;
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 2400);
+    }
+
+    function setActiveTab(tab) {
+      document.querySelectorAll('.config-tab').forEach((btn) => {
+        const on = btn.dataset.tab === tab;
+        btn.classList.toggle('bg-zinc-800', on);
+        btn.classList.toggle('text-zinc-100', on);
+        btn.classList.toggle('text-zinc-500', !on);
+        btn.setAttribute('aria-selected', String(on));
+      });
+      document.getElementById('panel-prefs').classList.toggle('hidden', tab !== 'prefs');
+      document.getElementById('panel-crew').classList.toggle('hidden', tab !== 'crew');
+    }
+
+    function toggleTarifaField() {
+      const isFreelancer = document.getElementById('crew-contrato').value === 'freelancer';
+      document.getElementById('crew-tarifa-wrap').classList.toggle('hidden', !isFreelancer);
+      document.getElementById('crew-tarifa').required = isFreelancer;
+    }
+
+    function resetCrewForm() {
+      editingCrewId = null;
+      document.getElementById('crew-form').reset();
+      document.getElementById('crew-contrato').value = 'planta';
+      toggleTarifaField();
+      document.getElementById('crew-form-reset').classList.add('hidden');
+      document.querySelector('#crew-form button[type=submit]').innerHTML = '<i data-lucide="user-plus" class="h-4 w-4"></i> Guardar miembro';
+      lucide.createIcons();
+    }
+
+    function renderCrewList() {
+      const list = FrameFlowDB.getCrewMembers();
+      const container = document.getElementById('crew-list');
+      const empty = document.getElementById('crew-empty');
+      document.getElementById('crew-count').textContent = `${list.length} miembro${list.length !== 1 ? 's' : ''}`;
+
+      if (!list.length) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      container.innerHTML = list.map((m) => {
+        const contractLabel = CREW_CONTRACTS[m.contrato] || m.contrato;
+        const tarifaLine = m.contrato === 'freelancer' && m.tarifaJornada
+          ? `<span class="text-cyan-400/90">${formatBudget(m.tarifaJornada)}/jornada</span>`
+          : '<span class="text-zinc-600">Planta — sin tarifa</span>';
+        return `
+          <article class="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${escapeHtml(m.nombre)}</p>
+              <p class="text-xs text-zinc-500 truncate">${escapeHtml(m.rol)} · ${contractLabel}</p>
+              <p class="text-[11px] text-zinc-600 truncate">${escapeHtml(m.email)}${m.telefono ? ' · ' + escapeHtml(m.telefono) : ''}</p>
+              <p class="text-[10px] mt-0.5">${tarifaLine}</p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <button type="button" class="crew-edit rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-cyan-500/40 hover:text-cyan-400" data-id="${m.id}">Editar</button>
+              <button type="button" class="crew-del rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-red-400/90 hover:bg-red-500/10" data-id="${m.id}">Eliminar</button>
+            </div>
+          </article>`;
+      }).join('');
+    }
+
+    function initCrewForm() {
+      document.getElementById('crew-rol').innerHTML = CREW_ROLES.map((r) =>
+        `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`
+      ).join('');
+      document.getElementById('crew-contrato').addEventListener('change', toggleTarifaField);
+
+      document.getElementById('crew-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const payload = {
+          nombre: document.getElementById('crew-nombre').value.trim(),
+          email: document.getElementById('crew-email').value.trim(),
+          telefono: document.getElementById('crew-telefono').value.trim(),
+          rol: document.getElementById('crew-rol').value,
+          contrato: document.getElementById('crew-contrato').value,
+          tarifaJornada: document.getElementById('crew-tarifa').value,
+        };
+        if (editingCrewId) {
+          FrameFlowDB.updateCrewMember(editingCrewId, payload);
+          toast('Miembro actualizado');
+        } else {
+          FrameFlowDB.addCrewMember(payload);
+          toast('Miembro añadido al crew');
+        }
+        resetCrewForm();
+        renderCrewList();
+      });
+
+      document.getElementById('crew-form-reset').addEventListener('click', resetCrewForm);
+
+      document.getElementById('crew-list').addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.crew-edit');
+        const delBtn = e.target.closest('.crew-del');
+        if (editBtn) {
+          const m = FrameFlowDB.getCrewMember(editBtn.dataset.id);
+          if (!m) return;
+          editingCrewId = m.id;
+          document.getElementById('crew-nombre').value = m.nombre;
+          document.getElementById('crew-email').value = m.email;
+          document.getElementById('crew-telefono').value = m.telefono || '';
+          document.getElementById('crew-rol').value = m.rol;
+          document.getElementById('crew-contrato').value = m.contrato;
+          document.getElementById('crew-tarifa').value = m.tarifaJornada ?? '';
+          toggleTarifaField();
+          document.getElementById('crew-form-reset').classList.remove('hidden');
+          document.querySelector('#crew-form button[type=submit]').innerHTML = '<i data-lucide="save" class="h-4 w-4"></i> Actualizar miembro';
+          lucide.createIcons();
+          document.getElementById('crew-nombre').focus();
+          return;
+        }
+        if (delBtn) {
+          if (confirm('¿Eliminar este miembro del crew recurrente?')) {
+            FrameFlowDB.deleteCrewMember(delBtn.dataset.id);
+            if (editingCrewId === delBtn.dataset.id) resetCrewForm();
+            renderCrewList();
+            toast('Miembro eliminado');
+          }
+        }
+      });
+    }
+
+    document.querySelectorAll('.config-tab').forEach((btn) => {
+      btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+    });
+
+    const hashTab = location.hash === '#crew' ? 'crew' : 'prefs';
+    setActiveTab(hashTab);
+
     FrameFlowSidebar.mount('sidebar-mount', 'configuracion');
+    initCrewForm();
+    toggleTarifaField();
+    renderCrewList();
     lucide.createIcons();
   </script>
 </body>

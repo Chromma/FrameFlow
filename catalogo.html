@@ -60,7 +60,11 @@
     @keyframes toastIn { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
     .catalog-card { min-height: 0; }
     .catalog-toast { animation: toastIn 0.22s ease-out; }
-    #assign-menu { min-width: 220px; }
+    #assign-menu { min-width: 240px; max-width: 280px; }
+    .save-menu-section.open .save-menu-panel { display: block; }
+    .save-menu-section.open .save-menu-chevron { transform: rotate(180deg); }
+    .card-save-btn.is-active { background: rgba(9, 9, 11, 0.92); color: #f87171; }
+    .card-save-btn.is-active i { fill: #f87171; stroke: #f87171; }
     .dest-group-label {
       padding: 0.5rem 1rem 0.25rem;
       font-size: 10px;
@@ -79,6 +83,31 @@
       background: rgba(8, 145, 178, 0.15);
       color: #22d3ee;
     }
+    @media (max-width: 767px) {
+      #view-locaciones {
+        flex-direction: column;
+        min-height: 0;
+      }
+      #map-panel {
+        order: 1;
+        width: 100%;
+        height: 35%;
+        min-height: 140px;
+        max-height: 35dvh;
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(39, 39, 42, 0.8);
+        border-left: none;
+      }
+      #loc-grid-panel {
+        order: 2;
+        flex: 1 1 0%;
+        min-height: 0;
+        width: 100%;
+        overflow: hidden;
+      }
+      #mobile-filter-sheet.open { display: flex; }
+    }
+    #mobile-filter-sheet { display: none; }
   </style>
 </head>
 <body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="catalogo">
@@ -114,8 +143,22 @@
           </div>
         </div>
 
+        <!-- Móvil: píldora única de búsqueda y filtros -->
+        <div id="mobile-search-pill-wrap" class="md:hidden border-t border-zinc-800/60 px-4 py-2.5 bg-zinc-950/80">
+          <button type="button" id="mobile-search-pill" class="flex w-full items-center gap-3 rounded-full border border-zinc-600/80 bg-zinc-900/95 px-4 py-3 shadow-lg shadow-black/30 text-left transition-colors hover:border-zinc-500">
+            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-400">
+              <i data-lucide="search" class="h-4 w-4"></i>
+            </span>
+            <span class="min-w-0 flex-1">
+              <span id="mobile-pill-title" class="block truncate text-sm font-semibold text-white">Locaciones</span>
+              <span id="mobile-pill-sub" class="block truncate text-xs text-zinc-500">Destino · Fechas · Filtros</span>
+            </span>
+            <i data-lucide="sliders-horizontal" class="h-4 w-4 shrink-0 text-zinc-400"></i>
+          </button>
+        </div>
+
         <!-- Buscador compacto estilo Airbnb: destino + fechas -->
-        <div id="search-bar" class="border-t border-zinc-800/60 px-4 py-3 sm:px-6 lg:px-8 bg-zinc-950/70">
+        <div id="search-bar" class="hidden md:block border-t border-zinc-800/60 px-4 py-3 sm:px-6 lg:px-8 bg-zinc-950/70">
           <div class="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:max-w-3xl">
             <div id="dest-search-wrap" class="search-picker relative flex-1 min-w-0">
               <button type="button" id="dest-search-trigger" class="flex w-full items-center gap-3 rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-2.5 text-left shadow-sm hover:border-zinc-600 transition-colors" aria-expanded="false" aria-haspopup="listbox">
@@ -166,7 +209,7 @@
       </header>
 
       <!-- Filtros Locaciones -->
-      <div id="loc-filters-bar" class="border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
+      <div id="loc-filters-bar" class="max-md:hidden border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
         <div class="flex flex-wrap items-center gap-2">
           <div class="filter-dropdown relative" data-filter="precio">
             <button type="button" class="filter-trigger flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900/80 px-4 py-2 text-xs font-medium text-zinc-300 hover:border-zinc-600 transition-colors">
@@ -233,7 +276,7 @@
       </div>
 
       <!-- Filtros Casting -->
-      <div id="cast-filters-bar" class="hidden border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
+      <div id="cast-filters-bar" class="max-md:hidden hidden border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 lg:px-8">
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div class="relative flex-1 max-w-md">
             <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"></i>
@@ -294,18 +337,18 @@
         <p id="cast-results-count" class="mt-2 text-[11px] text-zinc-600"></p>
       </div>
 
-      <!-- Vista Locaciones 50/50 -->
-      <div id="view-locaciones" class="view-panel flex flex-1 min-h-0 overflow-hidden">
-        <div class="w-full lg:w-1/2 flex flex-col min-h-0 border-r border-zinc-800/80">
+      <!-- Vista Locaciones — mapa 35% arriba en móvil, 50/50 en md+ -->
+      <div id="view-locaciones" class="view-panel flex flex-1 min-h-0 flex-col md:flex-row overflow-hidden">
+        <div id="map-panel" class="relative order-1 w-full shrink-0 md:order-2 md:h-auto md:w-1/2 md:min-h-0 border-b md:border-b-0 md:border-l border-zinc-800/80">
+          <div id="map" class="absolute inset-0 z-0"></div>
+        </div>
+        <div id="loc-grid-panel" class="order-2 md:order-1 w-full md:w-1/2 flex flex-col min-h-0 flex-1 overflow-hidden border-r border-zinc-800/80">
           <div id="loc-map-hint" class="shrink-0 border-b border-zinc-800/60 bg-zinc-900/30 px-4 py-2 text-[11px] text-zinc-500 flex items-center gap-1.5">
             <i data-lucide="scan" class="h-3.5 w-3.5 text-cyan-500/70"></i>
             El grid muestra solo locaciones visibles en el mapa. Arrastra o haz zoom para explorar.
           </div>
           <div id="locaciones-grid" class="flex-1 overflow-y-auto p-3 sm:p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-max content-start"></div>
           <p id="locaciones-empty" class="hidden py-10 text-center text-sm text-zinc-500 px-4">Ninguna locación en el área visible del mapa.</p>
-        </div>
-        <div id="map-panel" class="hidden lg:block lg:w-1/2 relative min-h-0">
-          <div id="map" class="absolute inset-0 z-0"></div>
         </div>
       </div>
 
@@ -317,11 +360,58 @@
     </main>
   </div>
 
-  <!-- Menú flotante: Asignar a proyecto -->
-  <div id="assign-menu" class="hidden fixed z-[60] rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black/50" role="menu"></div>
+  <!-- Sheet móvil: búsqueda y filtros unificados -->
+  <div id="mobile-filter-sheet" class="fixed inset-0 z-[55] flex-col md:hidden" role="dialog" aria-modal="true" aria-labelledby="mobile-sheet-title">
+    <div id="mobile-sheet-backdrop" class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+    <div class="relative mt-auto flex max-h-[88vh] w-full flex-col rounded-t-2xl border-t border-zinc-700 bg-zinc-900 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-zinc-800 px-4 py-3">
+        <h2 id="mobile-sheet-title" class="text-sm font-semibold text-white">Buscar y filtrar</h2>
+        <button type="button" id="mobile-sheet-close" class="rounded-lg p-2 text-zinc-400 hover:bg-zinc-800" aria-label="Cerrar">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </div>
+      <div class="overflow-y-auto p-4 space-y-4">
+        <div id="mobile-sheet-dest" class="search-picker relative">
+          <button type="button" id="mobile-dest-trigger" class="flex w-full items-center gap-3 rounded-xl border border-zinc-700 bg-zinc-800/50 px-4 py-3 text-left">
+            <i data-lucide="map-pin" class="h-4 w-4 text-zinc-500"></i>
+            <span class="min-w-0 flex-1">
+              <span class="block text-[10px] font-semibold uppercase text-zinc-500">Destino</span>
+              <span id="mobile-dest-value" class="block truncate text-sm text-zinc-200">Buscar destino</span>
+            </span>
+          </button>
+          <div id="mobile-dest-panel" class="hidden mt-2 rounded-xl border border-zinc-700 bg-zinc-900 p-2">
+            <input id="mobile-dest-input" type="search" placeholder="País, ciudad o zona..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+            <ul id="mobile-dest-list" class="mt-2 max-h-40 overflow-y-auto"></ul>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label for="mobile-date-from" class="block text-[10px] uppercase text-zinc-500 mb-1">Desde</label>
+            <input id="mobile-date-from" type="date" class="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-xs [color-scheme:dark] focus:outline-none" />
+          </div>
+          <div>
+            <label for="mobile-date-to" class="block text-[10px] uppercase text-zinc-500 mb-1">Hasta</label>
+            <input id="mobile-date-to" type="date" class="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2 text-xs [color-scheme:dark] focus:outline-none" />
+          </div>
+        </div>
+        <div id="mobile-sheet-loc-filters" class="flex flex-wrap gap-2"></div>
+        <div id="mobile-sheet-cast-filters" class="hidden space-y-3">
+          <input id="mobile-cast-search" type="search" placeholder="Nombre o habilidad..." class="w-full rounded-xl border border-zinc-700 bg-zinc-800/50 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+          <div id="mobile-cast-filter-chips" class="flex flex-wrap gap-2"></div>
+        </div>
+      </div>
+      <div class="border-t border-zinc-800 p-4 flex gap-2">
+        <button type="button" id="mobile-sheet-clear" class="flex-1 rounded-xl border border-zinc-700 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800">Limpiar</button>
+        <button type="button" id="mobile-sheet-apply" class="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-2.5 text-sm font-semibold text-zinc-950">Mostrar resultados</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menú flotante: guardar / vincular -->
+  <div id="assign-menu" class="hidden fixed z-[60] rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black/50 overflow-hidden" role="menu"></div>
 
   <div id="catalog-toast" class="catalog-toast pointer-events-none fixed bottom-6 left-1/2 z-[70] hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900/95 px-4 py-3 text-sm text-emerald-400 shadow-2xl backdrop-blur-sm" role="status">
-    <span class="flex items-center gap-2">
+    <span id="catalog-toast-text" class="flex items-center gap-2">
       <i data-lucide="check-circle" class="h-4 w-4"></i>
       Añadido con éxito al proyecto
     </span>
@@ -329,7 +419,9 @@
 
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="db.js"></script>
+  <script src="chat.js"></script>
   <script src="sidebar.js"></script>
+  <script src="shared-ui.js"></script>
   <script>
     /* ============================================================
        JERARQUÍA GEOGRÁFICA
@@ -487,6 +579,7 @@
         tipo: 'cine',
         edad: 28,
         estatura: 1.68,
+        precioJornada: 450,
         skills: ['danza', 'idiomas'],
         ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Urdesa' },
         imagen: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=600&h=600&fit=crop&crop=faces',
@@ -497,6 +590,7 @@
         tipo: 'teatro',
         edad: 34,
         estatura: 1.82,
+        precioJornada: 520,
         skills: ['accion', 'musica'],
         ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Samborondón' },
         imagen: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=600&fit=crop&crop=faces',
@@ -507,6 +601,7 @@
         tipo: 'voz',
         edad: 24,
         estatura: 1.62,
+        precioJornada: 380,
         skills: ['musica', 'idiomas'],
         ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Centro Histórico' },
         imagen: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&h=600&fit=crop&crop=faces',
@@ -517,6 +612,7 @@
         tipo: 'cine',
         edad: 41,
         estatura: 1.78,
+        precioJornada: 600,
         skills: ['accion', 'danza'],
         ubicacion: { pais: 'Ecuador', ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' },
         imagen: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&h=600&fit=crop&crop=faces',
@@ -715,17 +811,36 @@
       return Object.values(locFilters).some((v) => v !== '');
     }
 
-    function buildAssignBtnHtml(itemId, itemType) {
+    function buildSaveBtnHtml(itemId, itemType, itemName) {
       return `
         <button
           type="button"
-          class="assign-project-btn absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-600/80 bg-zinc-950/85 text-zinc-200 shadow-lg backdrop-blur-sm hover:border-cyan-500/50 hover:text-cyan-400 transition-colors"
+          class="card-save-btn absolute top-2.5 right-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/20 text-white backdrop-blur-[2px] hover:bg-black/40 hover:scale-105 transition-all"
           data-item-id="${escapeHtml(itemId)}"
           data-item-type="${escapeHtml(itemType)}"
-          aria-label="Asignar a proyecto"
-          title="Asignar a proyecto"
+          data-item-name="${escapeHtml(itemName)}"
+          aria-label="Guardar o vincular"
+          title="Guardar o vincular"
         >
-          <i data-lucide="folder-plus" class="h-4 w-4"></i>
+          <i data-lucide="heart" class="h-[18px] w-[18px]" stroke-width="2"></i>
+        </button>
+      `;
+    }
+
+    function buildCotizarBtnHtml(itemId, itemType, itemName, roleBadge, price, avatar) {
+      return `
+        <button
+          type="button"
+          class="btn-cotizar mt-2 w-full inline-flex items-center justify-center gap-1.5 rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs font-semibold text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-colors"
+          data-cotizar-id="${escapeHtml(itemId)}"
+          data-cotizar-type="${escapeHtml(itemType)}"
+          data-cotizar-name="${escapeHtml(itemName)}"
+          data-cotizar-badge="${escapeHtml(roleBadge)}"
+          data-cotizar-price="${price != null ? price : ''}"
+          data-cotizar-avatar="${escapeHtml(avatar || '')}"
+        >
+          <i data-lucide="message-circle" class="h-3.5 w-3.5"></i>
+          Cotizar / Contactar
         </button>
       `;
     }
@@ -755,7 +870,7 @@
           role="link"
         >
           <div class="relative overflow-hidden bg-zinc-800">
-            ${buildAssignBtnHtml(loc.id, 'locacion')}
+            ${buildSaveBtnHtml(loc.id, 'locacion', loc.nombre)}
             <img src="${loc.imagenes[0]}" alt="${escapeHtml(loc.nombre)}" class="w-full aspect-square object-cover object-top rounded-t-lg transition-transform duration-300 group-hover:scale-[1.02]" loading="lazy" />
           </div>
           <div class="flex flex-1 flex-col p-3 space-y-1.5">
@@ -770,6 +885,7 @@
               <i data-lucide="calendar-check" class="h-3 w-3"></i>
               ${escapeHtml(formatDisponibilidad(loc.disponibilidad))}
             </span>
+            ${buildCotizarBtnHtml(loc.id, 'locacion', loc.nombre, 'Locación', loc.precioJornada, loc.imagenes[0])}
           </div>
         </article>
       `;
@@ -785,7 +901,7 @@
           role="link"
         >
           <div class="relative overflow-hidden bg-zinc-800">
-            ${buildAssignBtnHtml(a.id, 'casting')}
+            ${buildSaveBtnHtml(a.id, 'casting', a.nombre)}
             <img src="${a.imagen}" alt="${escapeHtml(a.nombre)}" class="w-full aspect-square object-cover object-top rounded-t-lg transition-transform duration-300 group-hover:scale-[1.02]" loading="lazy" />
             <span class="absolute top-2 left-2 rounded-md bg-zinc-950/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-cyan-400 backdrop-blur-sm pointer-events-none">${TIPO_LABELS[a.tipo]}</span>
           </div>
@@ -799,6 +915,7 @@
             <div class="flex flex-wrap gap-1 pt-0.5">
               ${a.skills.map((s) => `<span class="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-400">${SKILL_LABELS[s] || s}</span>`).join('')}
             </div>
+            ${buildCotizarBtnHtml(a.id, 'casting', a.nombre, TIPO_LABELS[a.tipo], a.precioJornada || '', a.imagen)}
           </div>
         </article>
       `;
@@ -1049,11 +1166,152 @@
     }
 
     function onGeoOrFilterChange() {
+      updateMobilePillSummary();
       if (activeTab === 'locaciones') {
         refreshLocacionesFull();
       } else {
         renderCasting();
       }
+    }
+
+    /* ============================================================
+       MÓVIL — Píldora y sheet unificado
+       ============================================================ */
+    function updateMobilePillSummary() {
+      const titleEl = document.getElementById('mobile-pill-title');
+      if (!titleEl) return;
+      const dest = document.getElementById('dest-search-value')?.textContent?.trim() || 'Destino';
+      const dates = document.getElementById('date-search-value')?.textContent?.trim() || 'Fechas';
+      const activeFilterCount = activeTab === 'locaciones'
+        ? Object.values(locFilters).filter(Boolean).length
+        : Object.values(castFilters).filter(Boolean).length + (castSearch ? 1 : 0);
+      titleEl.textContent = activeTab === 'locaciones' ? 'Locaciones' : 'Casting';
+      document.getElementById('mobile-pill-sub').textContent =
+        `${dest} · ${dates}${activeFilterCount ? ` · ${activeFilterCount} filtros` : ''}`;
+      const mobileDest = document.getElementById('mobile-dest-value');
+      if (mobileDest) mobileDest.textContent = dest;
+    }
+
+    function setupMobileFilterClones() {
+      const locRow = document.querySelector('#loc-filters-bar > .flex');
+      const castRow = document.querySelector('#cast-filters-bar .flex.flex-wrap.gap-2');
+      const locTarget = document.getElementById('mobile-sheet-loc-filters');
+      const castTarget = document.getElementById('mobile-cast-filter-chips');
+      if (locRow && locTarget && !locTarget.dataset.cloned) {
+        locTarget.innerHTML = locRow.innerHTML;
+        locTarget.querySelector('#clear-loc-filters')?.remove();
+        locTarget.dataset.cloned = '1';
+      }
+      if (castRow && castTarget && !castTarget.dataset.cloned) {
+        castTarget.innerHTML = castRow.innerHTML;
+        castTarget.dataset.cloned = '1';
+      }
+    }
+
+    function syncMobileSheetVisibility() {
+      const isLoc = activeTab === 'locaciones';
+      document.getElementById('mobile-sheet-loc-filters')?.classList.toggle('hidden', !isLoc);
+      document.getElementById('mobile-sheet-cast-filters')?.classList.toggle('hidden', isLoc);
+    }
+
+    function openMobileFilterSheet() {
+      setupMobileFilterClones();
+      syncMobileSheetVisibility();
+      document.getElementById('mobile-date-from').value = document.getElementById('date-from')?.value || '';
+      document.getElementById('mobile-date-to').value = document.getElementById('date-to')?.value || '';
+      document.getElementById('mobile-cast-search').value = castSearch;
+      document.getElementById('mobile-filter-sheet').classList.add('open');
+      document.body.classList.add('overflow-hidden');
+      lucide.createIcons();
+    }
+
+    function closeMobileFilterSheet() {
+      document.getElementById('mobile-filter-sheet').classList.remove('open');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    function renderMobileDestList(filter = '') {
+      const ul = document.getElementById('mobile-dest-list');
+      if (!ul) return;
+      const items = filterDestinationOptions(filter);
+      if (!items.length) {
+        ul.innerHTML = '<li class="px-2 py-2 text-xs text-zinc-500">Sin resultados</li>';
+        return;
+      }
+      ul.innerHTML = items.slice(0, 8).map((o) => {
+        const displayLabel = o.level === 'ciudad' ? `${o.label} (toda la ciudad)` : o.label;
+        return `<li><button type="button" class="mobile-dest-opt w-full rounded-lg px-3 py-2 text-left text-sm text-zinc-200 hover:bg-zinc-800" data-pais="${escapeHtml(o.pais)}" data-ciudad="${escapeHtml(o.ciudad)}" data-sector="${escapeHtml(o.sector)}" data-label="${escapeHtml(displayLabel)}">${escapeHtml(displayLabel)}</button></li>`;
+      }).join('');
+    }
+
+    function initMobileFilterSheet() {
+      document.getElementById('mobile-search-pill')?.addEventListener('click', openMobileFilterSheet);
+      document.getElementById('mobile-sheet-close')?.addEventListener('click', closeMobileFilterSheet);
+      document.getElementById('mobile-sheet-backdrop')?.addEventListener('click', closeMobileFilterSheet);
+
+      document.getElementById('mobile-dest-trigger')?.addEventListener('click', () => {
+        document.getElementById('mobile-dest-panel')?.classList.toggle('hidden');
+        renderMobileDestList();
+      });
+
+      document.getElementById('mobile-dest-input')?.addEventListener('input', (e) => {
+        renderMobileDestList(e.target.value);
+      });
+
+      document.getElementById('mobile-dest-list')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.mobile-dest-opt');
+        if (!btn) return;
+        applyGeoFilter({
+          pais: btn.dataset.pais,
+          ciudad: btn.dataset.ciudad || '',
+          sector: btn.dataset.sector || '',
+          label: btn.dataset.label,
+        });
+        document.getElementById('mobile-dest-panel')?.classList.add('hidden');
+      });
+
+      document.getElementById('mobile-sheet-apply')?.addEventListener('click', () => {
+        const from = document.getElementById('mobile-date-from').value;
+        const to = document.getElementById('mobile-date-to').value;
+        if (document.getElementById('date-from')) document.getElementById('date-from').value = from;
+        if (document.getElementById('date-to')) document.getElementById('date-to').value = to;
+        if (!from) {
+          dateFilter = { start: '', end: '' };
+        } else {
+          dateFilter = { start: from, end: to && to >= from ? to : from };
+        }
+        updateDateDisplay();
+        updateSearchClearAll();
+        castSearch = document.getElementById('mobile-cast-search')?.value.trim() || '';
+        if (document.getElementById('cast-search')) document.getElementById('cast-search').value = castSearch;
+        closeMobileFilterSheet();
+        onGeoOrFilterChange();
+        if (map) requestAnimationFrame(() => map.invalidateSize());
+      });
+
+      document.getElementById('mobile-sheet-clear')?.addEventListener('click', () => {
+        clearDestination();
+        dateFilter = { start: '', end: '' };
+        document.getElementById('date-from').value = '';
+        document.getElementById('date-to').value = '';
+        document.getElementById('mobile-date-from').value = '';
+        document.getElementById('mobile-date-to').value = '';
+        locFilters = { ...FILTER_DEFAULTS.loc };
+        castFilters = { ...FILTER_DEFAULTS.cast };
+        castSearch = '';
+        document.getElementById('cast-search').value = '';
+        document.getElementById('mobile-cast-search').value = '';
+        document.querySelectorAll('#loc-filters-bar .filter-label, #mobile-sheet-loc-filters .filter-label').forEach((el) => {
+          if (el.dataset.default) el.textContent = el.dataset.default;
+        });
+        document.querySelectorAll('#cast-filters-bar .filter-label, #mobile-cast-filter-chips .filter-label').forEach((el) => {
+          if (el.dataset.default) el.textContent = el.dataset.default;
+        });
+        updateDateDisplay();
+        updateSearchClearAll();
+        updateClearButton();
+        onGeoOrFilterChange();
+      });
     }
 
     /* ============================================================
@@ -1080,8 +1338,7 @@
       document.getElementById('view-locaciones').classList.toggle('hidden', !isLoc);
       document.getElementById('view-locaciones').classList.toggle('flex', isLoc);
       document.getElementById('view-casting').classList.toggle('hidden', isLoc);
-      document.getElementById('map-panel').classList.toggle('hidden', !isLoc);
-      document.getElementById('map-panel').classList.toggle('lg:block', isLoc);
+      updateMobilePillSummary();
 
       if (isLoc) {
         requestAnimationFrame(() => {
@@ -1128,15 +1385,22 @@
             if (activeTab === 'locaciones' && key in locFilters) {
               locFilters[key] = value;
               labelEl.textContent = value ? label : defaultLabel;
+              document.querySelectorAll(`.filter-dropdown[data-filter="${key}"] .filter-label`).forEach((el) => {
+                el.textContent = value ? label : (el.dataset.default || defaultLabel);
+              });
               refreshLocacionesFull();
             } else if (activeTab === 'casting' && key in castFilters) {
               castFilters[key] = value;
               labelEl.textContent = value ? label : defaultLabel;
+              document.querySelectorAll(`.filter-dropdown[data-filter="${key}"] .filter-label`).forEach((el) => {
+                el.textContent = value ? label : (el.dataset.default || defaultLabel);
+              });
               renderCasting();
             }
 
             dropdown.classList.remove('open');
             updateClearButton();
+            updateMobilePillSummary();
           });
         });
       });
@@ -1274,7 +1538,7 @@
     function bindCardNavigation(gridId, cardClass) {
       const grid = document.getElementById(gridId);
       grid.addEventListener('click', (e) => {
-        if (e.target.closest('.assign-project-btn') || e.target.closest('#assign-menu')) return;
+        if (e.target.closest('.card-save-btn') || e.target.closest('#assign-menu') || e.target.closest('.btn-cotizar')) return;
         const card = e.target.closest(cardClass);
         if (card?.dataset.href) {
           sessionStorage.setItem('ff_catalog_view', activeTab);
@@ -1284,7 +1548,7 @@
       grid.addEventListener('keydown', (e) => {
         if (e.key !== 'Enter' && e.key !== ' ') return;
         const card = e.target.closest(cardClass);
-        if (!card || e.target.closest('.assign-project-btn')) return;
+        if (!card || e.target.closest('.card-save-btn')) return;
         e.preventDefault();
         if (card.dataset.href) {
           sessionStorage.setItem('ff_catalog_view', activeTab);
@@ -1299,6 +1563,25 @@
 
     function bindActorCardNavigation() {
       bindCardNavigation('casting-grid', '.actor-card');
+    }
+
+    /** Cotizar / Contactar → crea conversación y abre chat.html */
+    function bindCotizarDelegation() {
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.btn-cotizar');
+        if (!btn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const resourceType = btn.dataset.cotizarType === 'casting' ? 'actor' : btn.dataset.cotizarType;
+        FrameFlowUI.openChat({
+          resourceId: btn.dataset.cotizarId,
+          resourceType,
+          name: btn.dataset.cotizarName,
+          roleBadge: btn.dataset.cotizarBadge,
+          price: btn.dataset.cotizarPrice ? Number(btn.dataset.cotizarPrice) : undefined,
+          avatar: btn.dataset.cotizarAvatar || undefined,
+        });
+      });
     }
 
     /* ============================================================
@@ -1324,28 +1607,60 @@
     }
 
     /* ============================================================
-       ASIGNAR A PROYECTO — Menú flotante + toast
+       GUARDAR / VINCULAR — Menú flotante + toast
        ============================================================ */
+    let activeSaveBtn = null;
+
     function closeAssignMenu() {
       document.getElementById('assign-menu').classList.add('hidden');
       assignMenuContext = null;
+      if (activeSaveBtn) {
+        activeSaveBtn.classList.remove('is-active');
+        activeSaveBtn = null;
+      }
     }
 
     function populateAssignMenu() {
       const menu = document.getElementById('assign-menu');
       const { STATUS_META } = FrameFlowDB;
-      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
+      const lists = FrameFlowDB.getInterestLists();
+
       menu.innerHTML = `
-        <button type="button" data-project-id="new" class="assign-project-option flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-medium text-cyan-400 hover:bg-zinc-800">
-          <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
-        </button>
-        <div class="my-1 border-t border-zinc-800"></div>
-        ${projects.map((p) => `
-          <button type="button" data-project-id="${escapeHtml(p.id)}" class="assign-project-option w-full px-4 py-2.5 text-left hover:bg-zinc-800">
-            <span class="text-sm text-zinc-200">${escapeHtml(p.name)}</span>
-            <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || p.status)}</span>
+        <div class="save-menu-section" data-section="projects">
+          <button type="button" class="save-menu-trigger flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+            <i data-lucide="folder-kanban" class="h-3.5 w-3.5 shrink-0 text-cyan-400"></i>
+            <span class="flex-1">Vincular a un Proyecto...</span>
+            <i data-lucide="chevron-down" class="save-menu-chevron h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform"></i>
           </button>
-        `).join('')}
+          <div class="save-menu-panel hidden max-h-44 overflow-y-auto border-t border-zinc-800/80 bg-zinc-950/40">
+            ${projects.length ? projects.map((p) => `
+              <button type="button" data-action="project" data-project-id="${escapeHtml(p.id)}" class="assign-project-option w-full px-3 py-2 text-left hover:bg-zinc-800/80 transition-colors">
+                <span class="text-xs text-zinc-200">${escapeHtml(p.name)}</span>
+                <span class="block text-[10px] text-zinc-500">${escapeHtml(STATUS_META[p.status]?.label || p.status)}</span>
+              </button>
+            `).join('') : '<p class="px-3 py-2 text-[11px] text-zinc-500">No hay proyectos activos</p>'}
+          </div>
+        </div>
+        <div class="save-menu-section border-t border-zinc-800/80" data-section="lists">
+          <button type="button" class="save-menu-trigger flex w-full items-center gap-2 px-3 py-2.5 text-left text-xs font-medium text-zinc-200 hover:bg-zinc-800/80 transition-colors">
+            <i data-lucide="bookmark" class="h-3.5 w-3.5 shrink-0 text-cyan-400"></i>
+            <span class="flex-1">Agregar a Lista de Interés...</span>
+            <i data-lucide="chevron-down" class="save-menu-chevron h-3.5 w-3.5 shrink-0 text-zinc-500 transition-transform"></i>
+          </button>
+          <div class="save-menu-panel hidden max-h-44 overflow-y-auto border-t border-zinc-800/80 bg-zinc-950/40">
+            ${lists.map((list) => `
+              <button type="button" data-action="list" data-list-id="${escapeHtml(list.id)}" class="interest-list-option w-full px-3 py-2 text-left text-xs text-zinc-300 hover:bg-zinc-800/80 transition-colors">
+                ${escapeHtml(list.name)}
+                <span class="block text-[10px] text-zinc-500">${list.items.length} ítem${list.items.length !== 1 ? 's' : ''}</span>
+              </button>
+            `).join('')}
+            <button type="button" data-action="new-list" class="flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-semibold text-cyan-400 hover:bg-zinc-800/80 border-t border-zinc-800/80 transition-colors">
+              <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+              Crear nueva lista
+            </button>
+          </div>
+        </div>
       `;
       lucide.createIcons();
     }
@@ -1353,18 +1668,36 @@
     function openAssignMenu(anchorBtn) {
       const menu = document.getElementById('assign-menu');
       const rect = anchorBtn.getBoundingClientRect();
-      assignMenuContext = { itemId: anchorBtn.dataset.itemId, itemType: anchorBtn.dataset.itemType };
+      assignMenuContext = {
+        itemId: anchorBtn.dataset.itemId,
+        itemType: anchorBtn.dataset.itemType,
+        itemName: anchorBtn.dataset.itemName,
+      };
+      if (activeSaveBtn && activeSaveBtn !== anchorBtn) activeSaveBtn.classList.remove('is-active');
+      activeSaveBtn = anchorBtn;
+      anchorBtn.classList.add('is-active');
       populateAssignMenu();
       menu.classList.remove('hidden');
-      const menuW = 240;
+      const menuW = 260;
       let left = rect.right - menuW;
       if (left < 8) left = 8;
-      menu.style.top = `${rect.bottom + 6}px`;
+      let top = rect.bottom + 6;
+      if (top + 200 > window.innerHeight) top = rect.top - 8;
+      menu.style.top = `${top}px`;
       menu.style.left = `${left}px`;
     }
 
-    function showCatalogToast() {
+    function toggleSaveMenuSection(sectionEl) {
+      const menu = document.getElementById('assign-menu');
+      const isOpen = sectionEl.classList.contains('open');
+      menu.querySelectorAll('.save-menu-section').forEach((s) => s.classList.remove('open'));
+      if (!isOpen) sectionEl.classList.add('open');
+    }
+
+    function showCatalogToast(msg) {
       const toast = document.getElementById('catalog-toast');
+      const textEl = document.getElementById('catalog-toast-text');
+      textEl.innerHTML = `<i data-lucide="check-circle" class="h-4 w-4"></i> ${msg || 'Añadido con éxito'}`;
       toast.classList.remove('hidden');
       lucide.createIcons();
       clearTimeout(showCatalogToast._t);
@@ -1373,7 +1706,7 @@
 
     function bindAssignProjects() {
       document.addEventListener('click', (e) => {
-        const btn = e.target.closest('.assign-project-btn');
+        const btn = e.target.closest('.card-save-btn');
         if (btn) {
           e.preventDefault();
           e.stopPropagation();
@@ -1386,18 +1719,53 @@
       });
 
       document.getElementById('assign-menu').addEventListener('click', (e) => {
-        const opt = e.target.closest('.assign-project-option');
-        if (!opt || !assignMenuContext) return;
-        e.stopPropagation();
-        const projectId = opt.dataset.projectId;
-        if (projectId === 'new') {
-          window.location.href = 'index.html';
+        const trigger = e.target.closest('.save-menu-trigger');
+        if (trigger) {
+          e.stopPropagation();
+          toggleSaveMenuSection(trigger.closest('.save-menu-section'));
           return;
         }
-        const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'actor';
-        FrameFlowDB.assignResource(projectId, resType, assignMenuContext.itemId);
-        showCatalogToast();
-        closeAssignMenu();
+
+        const projectOpt = e.target.closest('[data-action="project"]');
+        if (projectOpt && assignMenuContext) {
+          e.stopPropagation();
+          const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'actor';
+          const result = FrameFlowDB.assignResourceWithBudget(projectOpt.dataset.projectId, resType, assignMenuContext.itemId);
+          showCatalogToast(result.overBudget ? 'Vinculado — alerta: presupuesto excedido' : 'Vinculado al proyecto con éxito');
+          closeAssignMenu();
+          return;
+        }
+
+        const listOpt = e.target.closest('[data-action="list"]');
+        if (listOpt && assignMenuContext) {
+          e.stopPropagation();
+          const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'casting';
+          FrameFlowDB.addToInterestList(listOpt.dataset.listId, {
+            id: assignMenuContext.itemId,
+            type: resType,
+            name: assignMenuContext.itemName,
+          });
+          showCatalogToast('Agregado a la lista de interés');
+          closeAssignMenu();
+          return;
+        }
+
+        const newListBtn = e.target.closest('[data-action="new-list"]');
+        if (newListBtn && assignMenuContext) {
+          e.stopPropagation();
+          const name = window.prompt('Nombre de la nueva lista:', '');
+          if (!name?.trim()) return;
+          const list = FrameFlowDB.createInterestList(name.trim());
+          if (!list) return;
+          const resType = assignMenuContext.itemType === 'locacion' ? 'locacion' : 'casting';
+          FrameFlowDB.addToInterestList(list.id, {
+            id: assignMenuContext.itemId,
+            type: resType,
+            name: assignMenuContext.itemName,
+          });
+          showCatalogToast(`Lista «${name.trim()}» creada y ítem agregado`);
+          closeAssignMenu();
+        }
       });
 
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAssignMenu(); });
@@ -1413,15 +1781,23 @@
       el.dataset.default = el.textContent.trim();
     });
 
+    setupMobileFilterClones();
+    document.querySelectorAll('#mobile-sheet-loc-filters .filter-label, #mobile-cast-filter-chips .filter-label').forEach((el) => {
+      if (!el.dataset.default) el.dataset.default = el.textContent.trim();
+    });
     FrameFlowSidebar.mount('sidebar-mount', 'catalogo');
     initCompactSearch();
+    initMobileFilterSheet();
     bindAssignProjects();
     bindLocCardNavigation();
     bindActorCardNavigation();
+    bindCotizarDelegation();
     bindTabs();
     bindFilterDropdowns();
     const urlVista = new URLSearchParams(location.search).get('vista') || new URLSearchParams(location.search).get('view') || 'locaciones';
     setActiveTab(urlVista === 'casting' ? 'casting' : 'locaciones');
+    updateMobilePillSummary();
+    window.addEventListener('ff-sidebar-toggle', () => { if (map) requestAnimationFrame(() => map.invalidateSize()); });
     lucide.createIcons();
   </script>
 </body>

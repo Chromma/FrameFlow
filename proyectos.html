@@ -59,7 +59,7 @@
   <script src="db.js"></script>
   <script src="sidebar.js"></script>
   <script>
-    const { COLOR_PALETTE, TYPE_LABELS, STATUS_META } = FrameFlowDB;
+    const { COLOR_PALETTE, TYPE_LABELS, STATUS_META, getEffectiveProgress } = FrameFlowDB;
 
     let statusFilter = 'all';
     let searchQuery = '';
@@ -103,6 +103,7 @@
         const color = getColor(p.colorIndex);
         const st = STATUS_META[p.status];
         const href = `proyecto-detalle.html?id=${encodeURIComponent(p.id)}`;
+        const progress = getEffectiveProgress(p);
         const budgetLabel = typeof p.budget === 'number' ? FrameFlowDB.formatBudget(p.budget) : p.budget;
         return `
           <article data-href="${href}" class="project-card flex flex-col rounded-xl border ${color.border} bg-zinc-900/50 p-5 cursor-pointer hover:shadow-lg hover:shadow-cyan-500/5 transition-all" tabindex="0" role="link">
@@ -115,10 +116,10 @@
             <div class="mt-4">
               <div class="flex justify-between text-[10px] text-zinc-500 mb-1.5">
                 <span>Progreso</span>
-                <span class="text-zinc-400 font-medium">${p.progress}%</span>
+                <span class="text-zinc-400 font-medium">${progress}%</span>
               </div>
               <div class="h-1.5 overflow-hidden rounded-full bg-zinc-800">
-                <div class="progress-fill h-full rounded-full bg-gradient-to-r ${color.bar}" style="width:${p.progress}%"></div>
+                <div class="progress-fill h-full rounded-full bg-gradient-to-r ${color.bar}" style="width:${progress}%"></div>
               </div>
             </div>
             <div class="mt-4 flex items-center gap-2 text-[10px] text-zinc-600">

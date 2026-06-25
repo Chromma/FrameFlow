@@ -12,6 +12,17 @@
     ::-webkit-scrollbar-track { background: #18181b; }
     ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
     .progress-fill { transition: width 0.5s ease-out; }
+    @keyframes callSheetIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .call-sheet-panel { animation: callSheetIn 0.22s ease-out; }
+    .cs-tab-active { background: rgba(39, 39, 42, 0.9); color: #fafafa; }
+    .crew-suggest-item:hover { background: rgba(39, 39, 42, 0.8); }
+    @media print {
+      body * { visibility: hidden; }
+      #call-sheet-print-area, #call-sheet-print-area * { visibility: visible; }
+      #call-sheet-print-area { position: absolute; left: 0; top: 0; width: 100%; background: white; color: black; padding: 24px; }
+      #call-sheet-modal .no-print { display: none !important; }
+      #call-sheet-print-area .cs-panel.hidden { display: block !important; }
+    }
   </style>
 </head>
 <body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="proyectos">
@@ -34,18 +45,38 @@
               <p id="p-client" class="text-sm text-zinc-500 mt-1"></p>
             </div>
             <div class="flex flex-wrap gap-2 items-center">
+              <div class="relative" id="project-actions-wrap">
+                <button type="button" id="project-actions-btn" class="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-200 hover:border-zinc-600">
+                  <i data-lucide="more-horizontal" class="h-4 w-4"></i> Acciones
+                </button>
+                <div id="project-actions-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl">
+                  <button type="button" data-action="finalizado" class="action-opt w-full px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-zinc-800">Marcar como Finalizado</button>
+                  <button type="button" data-action="archivado" class="action-opt w-full px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-zinc-800">Archivar proyecto</button>
+                  <div class="my-1 border-t border-zinc-800"></div>
+                  <button type="button" data-action="eliminar" class="action-opt w-full px-4 py-2.5 text-left text-sm text-red-400 hover:bg-red-500/10">Eliminar proyecto</button>
+                </div>
+              </div>
               <select id="p-status" class="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"></select>
+              <button type="button" id="btn-call-sheet" class="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2 text-xs font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+                <i data-lucide="file-text" class="h-4 w-4"></i>
+                Generar Hoja de Llamado
+              </button>
               <select id="p-color" class="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:outline-none"></select>
             </div>
           </div>
+          <div id="budget-alert" class="hidden"></div>
           <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <div class="flex justify-between text-xs text-zinc-500 mb-2"><span>Progreso</span><span id="p-progress-label" class="text-zinc-300"></span></div>
-            <input id="p-progress" type="range" min="0" max="100" class="w-full accent-cyan-500" />
-            <div class="h-2 mt-2 overflow-hidden rounded-full bg-zinc-800"><div id="p-progress-bar" class="progress-fill h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" style="width:0%"></div></div>
+            <div class="flex justify-between text-xs text-zinc-500 mb-2"><span>Progreso (calculado desde tareas)</span><span id="p-progress-label" class="text-zinc-300 font-medium"></span></div>
+            <div class="h-2 overflow-hidden rounded-full bg-zinc-800"><div id="p-progress-bar" class="progress-fill h-full rounded-full bg-gradient-to-r from-cyan-500 to-cyan-400" style="width:0%"></div></div>
+            <p id="p-progress-hint" class="mt-2 text-[10px] text-zinc-600">Marca tareas completadas para actualizar el avance automáticamente.</p>
           </div>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"><p class="text-[10px] uppercase text-zinc-500">Tipo</p><p id="p-type" class="mt-1 text-sm font-medium"></p></div>
-            <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"><p class="text-[10px] uppercase text-zinc-500">Presupuesto</p><input id="p-budget" type="number" min="0" step="100" class="mt-1 w-full bg-transparent text-sm font-medium text-cyan-400 focus:outline-none" /></div>
+            <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+              <p class="text-[10px] uppercase text-zinc-500">Presupuesto</p>
+              <input id="p-budget" type="number" min="0" step="100" class="mt-1 w-full bg-transparent text-sm font-medium text-cyan-400 focus:outline-none" />
+              <p id="p-budget-remaining" class="mt-1 text-[10px] text-zinc-500"></p>
+            </div>
             <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"><p class="text-[10px] uppercase text-zinc-500">Inicio</p><input id="p-start" type="date" class="mt-1 w-full bg-transparent text-sm [color-scheme:dark] focus:outline-none" /></div>
             <div class="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4"><p class="text-[10px] uppercase text-zinc-500">Fin</p><input id="p-end" type="date" class="mt-1 w-full bg-transparent text-sm [color-scheme:dark] focus:outline-none" /></div>
           </div>
@@ -70,32 +101,595 @@
               <p id="linked-cast-empty" class="hidden text-sm text-zinc-500">Sin perfiles. Asigna desde el <a href="catalogo.html?vista=casting" class="text-cyan-400">catálogo</a>.</p>
             </div>
           </section>
+          <section id="reviews-section" class="hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-6">
+            <h2 class="text-base font-semibold text-white flex items-center gap-2 mb-4"><i data-lucide="star" class="h-5 w-5 text-amber-400"></i> Reseñas pendientes</h2>
+            <p class="text-sm text-zinc-400 mb-4">Proyecto finalizado — califica al talento y locaciones utilizadas.</p>
+            <div id="pending-reviews" class="space-y-4"></div>
+          </section>
           <button type="button" id="btn-save" class="w-full sm:w-auto rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-8 py-3 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500">Guardar cambios</button>
         </div>
       </div>
     </main>
   </div>
   <div id="toast" class="fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900 px-4 py-3 text-sm text-emerald-400 shadow-2xl">Guardado</div>
+
+  <!-- Modal: Vista Previa Hoja de Llamado -->
+  <div id="call-sheet-modal" class="fixed inset-0 z-[100] hidden" role="dialog" aria-modal="true" aria-labelledby="call-sheet-title">
+    <div id="call-sheet-backdrop" class="absolute inset-0 bg-zinc-950/85 backdrop-blur-md"></div>
+    <div class="call-sheet-panel relative flex h-full flex-col">
+      <header class="no-print shrink-0 flex items-center justify-between gap-4 border-b border-zinc-800/80 bg-zinc-900/95 px-4 py-4 sm:px-8 backdrop-blur-xl">
+        <div>
+          <p class="text-[10px] uppercase tracking-wider text-cyan-400 font-semibold">Vista previa</p>
+          <h2 id="call-sheet-title" class="text-lg font-semibold text-white">Hoja de Llamado</h2>
+        </div>
+        <button type="button" id="call-sheet-close" class="rounded-lg border border-zinc-700 bg-zinc-800/80 p-2 text-zinc-400 hover:text-white transition-colors" aria-label="Cerrar">
+          <i data-lucide="x" class="h-5 w-5"></i>
+        </button>
+      </header>
+
+      <div class="flex-1 overflow-y-auto px-4 py-6 sm:px-8">
+        <div id="call-sheet-print-area" class="mx-auto max-w-4xl space-y-6 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5 sm:p-8 shadow-2xl shadow-black/30">
+
+          <!-- Pestañas Hoja de Llamado -->
+          <nav class="no-print flex flex-wrap gap-1 rounded-xl border border-zinc-800 bg-zinc-950/80 p-1" role="tablist" aria-label="Secciones hoja de llamado">
+            <button type="button" data-cs-tab="locacion" class="cs-tab cs-tab-active flex-1 min-w-[4.5rem] rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition-colors sm:text-sm">Locación</button>
+            <button type="button" data-cs-tab="talento" class="cs-tab flex-1 min-w-[4.5rem] rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition-colors sm:text-sm">Talento</button>
+            <button type="button" data-cs-tab="crew" class="cs-tab flex-1 min-w-[4.5rem] rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition-colors sm:text-sm">Crew</button>
+            <button type="button" data-cs-tab="seguridad" class="cs-tab flex-1 min-w-[4.5rem] rounded-lg px-3 py-2 text-xs font-semibold text-zinc-500 transition-colors sm:text-sm">Seguridad</button>
+          </nav>
+
+          <!-- Tab: Locación -->
+          <section id="cs-panel-locacion" class="cs-panel rounded-xl border border-zinc-700/80 bg-zinc-950/50 p-5 sm:p-6">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+              <i data-lucide="map-pin" class="h-4 w-4 text-cyan-400"></i>
+              Locación y fecha de producción
+            </h3>
+            <div id="call-sheet-loc-empty" class="hidden rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+              No hay locación vinculada. Asigna una desde el catálogo para completar la hoja.
+            </div>
+            <div id="call-sheet-loc-data" class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Locación</p>
+                <p id="cs-loc-name" class="text-sm font-semibold text-white"></p>
+                <p id="cs-loc-address" class="mt-1 text-sm text-zinc-400"></p>
+                <p id="cs-loc-coords" class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-zinc-800/80 px-2 py-1 text-xs font-mono text-cyan-400/90"></p>
+              </div>
+              <div>
+                <label for="cs-production-date" class="text-[10px] uppercase tracking-wider text-zinc-500 mb-1 block">Fecha de producción</label>
+                <input id="cs-production-date" type="date" class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+                <p class="mt-2 text-[11px] text-zinc-600">Sincronizada con la fecha de inicio del proyecto; editable para el día de rodaje.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Tab: Talento -->
+          <section id="cs-panel-talento" class="cs-panel hidden rounded-xl border border-zinc-700/80 bg-zinc-950/50 p-5 sm:p-6">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+              <i data-lucide="users" class="h-4 w-4 text-cyan-400"></i>
+              Talento / Casting
+            </h3>
+            <div id="call-sheet-cast-empty" class="hidden text-sm text-zinc-500 py-4 text-center rounded-lg border border-dashed border-zinc-700">
+              Sin actores vinculados a este proyecto.
+            </div>
+            <div id="call-sheet-cast-wrap" class="overflow-x-auto rounded-lg border border-zinc-800">
+              <table class="w-full min-w-[520px] text-left text-sm">
+                <thead>
+                  <tr class="border-b border-zinc-800 bg-zinc-900/80 text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th class="px-4 py-3 font-semibold">Actor</th>
+                    <th class="px-4 py-3 font-semibold">Rol</th>
+                    <th class="px-4 py-3 font-semibold">Hora de citación</th>
+                    <th class="px-4 py-3 font-semibold">Hora de maquillaje</th>
+                  </tr>
+                </thead>
+                <tbody id="call-sheet-cast-body" class="divide-y divide-zinc-800/80"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Tab: Crew -->
+          <section id="cs-panel-crew" class="cs-panel hidden rounded-xl border border-zinc-700/80 bg-zinc-950/50 p-5 sm:p-6">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+              <i data-lucide="hard-hat" class="h-4 w-4 text-cyan-400"></i>
+              Equipo técnico / Crew
+            </h3>
+            <p class="text-[11px] text-zinc-500 mb-4">Busca miembros registrados en <a href="configuracion.html#crew" class="text-cyan-400 hover:underline">Configuración → Crew Habitual</a>.</p>
+
+            <div class="no-print relative mb-4">
+              <label for="cs-crew-search" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Añadir miembro al llamado</label>
+              <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"></i>
+                <input id="cs-crew-search" type="search" autocomplete="off" placeholder="Buscar por nombre, rol o correo..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder:text-zinc-600 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20" />
+              </div>
+              <div id="cs-crew-suggestions" class="hidden absolute left-0 right-0 top-full z-20 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl"></div>
+            </div>
+
+            <div id="call-sheet-crew-empty" class="hidden text-sm text-zinc-500 py-6 text-center rounded-lg border border-dashed border-zinc-700">
+              Sin crew asignado. Usa el buscador para añadir miembros.
+            </div>
+            <div id="call-sheet-crew-wrap" class="overflow-x-auto rounded-lg border border-zinc-800">
+              <table class="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr class="border-b border-zinc-800 bg-zinc-900/80 text-[10px] uppercase tracking-wider text-zinc-500">
+                    <th class="px-4 py-3 font-semibold">Nombre</th>
+                    <th class="px-4 py-3 font-semibold">Rol</th>
+                    <th class="px-4 py-3 font-semibold">Contrato</th>
+                    <th class="px-4 py-3 font-semibold">Hora citación</th>
+                    <th class="px-4 py-3 font-semibold">Tarifa / jornada</th>
+                    <th class="no-print px-4 py-3 font-semibold w-10"></th>
+                  </tr>
+                </thead>
+                <tbody id="call-sheet-crew-body" class="divide-y divide-zinc-800/80"></tbody>
+              </table>
+            </div>
+
+            <div class="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 px-4 py-3">
+              <p class="text-xs text-zinc-400 flex items-center gap-2">
+                <i data-lucide="wallet" class="h-4 w-4 text-cyan-400"></i>
+                Costos logísticos crew (freelancers)
+              </p>
+              <p id="cs-crew-logistics-total" class="text-sm font-bold text-cyan-400">$0 USD</p>
+            </div>
+          </section>
+
+          <!-- Tab: Seguridad -->
+          <section id="cs-panel-seguridad" class="cs-panel hidden rounded-xl border border-zinc-700/80 bg-zinc-950/50 p-5 sm:p-6 space-y-4">
+            <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+              <i data-lucide="shield-alert" class="h-4 w-4 text-cyan-400"></i>
+              Seguridad en set
+            </h3>
+            <div>
+              <label for="cs-safety-notes" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Notas de seguridad del set</label>
+              <textarea id="cs-safety-notes" rows="3" placeholder="EPP requerido, puntos de reunión de emergencia, restricciones de fuego..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"></textarea>
+            </div>
+            <div>
+              <label for="cs-hospitals" class="block text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Hospitales cercanos</label>
+              <textarea id="cs-hospitals" rows="2" placeholder="Hospital Guayaquil — Av. 9 de Octubre · Clínica Kennedy — Urdesa..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"></textarea>
+            </div>
+          </section>
+
+          <div class="no-print flex flex-col sm:flex-row gap-3 pt-2">
+            <button type="button" id="cs-export-btn" class="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-6 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+              <i data-lucide="share-2" class="h-4 w-4"></i>
+              Exportar PDF / Compartir Link
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="db.js"></script>
   <script src="sidebar.js"></script>
+  <script src="shared-ui.js"></script>
   <script>
-    const { TYPE_LABELS, STATUS_META, formatBudget, getColor, TIPO_ACTOR_LABELS } = FrameFlowDB;
+    const { TYPE_LABELS, STATUS_META, formatBudget, getColor, TIPO_ACTOR_LABELS, calcTaskProgress, getEffectiveProgress, CREW_CONTRACTS } = FrameFlowDB;
     const COLOR_NAMES = ['Cian', 'Violeta', 'Esmeralda', 'Ámbar', 'Rosa', 'Fucsia'];
     let projectId = new URLSearchParams(location.search).get('id');
 
+    /** Coordenadas y direcciones de referencia (no alteran catálogo en localStorage) */
+    const LOC_META = {
+      'loc-001': { lat: -2.1689, lng: -79.8976, direccion: 'Av. Víctor Emilio Estrada & Costanera, Urdesa, Guayaquil' },
+      'loc-002': { lat: -2.1962, lng: -79.8774, direccion: 'Puerto Santa Ana, Malecón Simón Bolívar, Guayaquil' },
+      'loc-003': { lat: -2.1254, lng: -79.8682, direccion: 'Km 14 Vía a Samborondón, Guayaquil' },
+      'loc-004': { lat: -2.1968, lng: -79.8831, direccion: 'Calle Rocafuerte & Chile, Centro Histórico, Guayaquil' },
+      'loc-005': { lat: -2.1421, lng: -79.9124, direccion: 'Vía a la Costa, sector norte, Guayaquil' },
+      'loc-006': { lat: -2.1712, lng: -79.9015, direccion: 'Urdesa Central, Guayaquil' },
+    };
+
+    let callSheetDraft = null;
+    let activeCallSheetTab = 'locacion';
+
+    function setCallSheetTab(tab) {
+      activeCallSheetTab = tab;
+      document.querySelectorAll('.cs-tab').forEach((btn) => {
+        const on = btn.dataset.csTab === tab;
+        btn.classList.toggle('cs-tab-active', on);
+        btn.classList.toggle('text-zinc-100', on);
+        btn.classList.toggle('text-zinc-500', !on);
+      });
+      document.querySelectorAll('.cs-panel').forEach((panel) => {
+        panel.classList.toggle('hidden', panel.id !== `cs-panel-${tab}`);
+      });
+    }
+
+    function buildCallSheetDraft(p) {
+      const saved = p.hojaLlamado || {};
+      const cast = (p.actores || []).map(FrameFlowDB.getActor).filter(Boolean);
+      const crew = (saved.crew || []).filter((row) => FrameFlowDB.getCrewMember(row.crewId));
+      return {
+        productionDate: saved.productionDate || p.start || new Date().toISOString().slice(0, 10),
+        talent: cast.map((a) => {
+          const prev = (saved.talent || []).find((t) => t.actorId === a.id);
+          return {
+            actorId: a.id,
+            horaCitacion: prev?.horaCitacion || '06:00',
+            horaMaquillaje: prev?.horaMaquillaje || '05:30',
+          };
+        }),
+        crew: crew.map((row) => {
+          const member = FrameFlowDB.getCrewMember(row.crewId);
+          const tarifa = member?.contrato === 'freelancer'
+            ? (row.tarifaJornada != null ? row.tarifaJornada : member.tarifaJornada)
+            : null;
+          return {
+            crewId: row.crewId,
+            horaCitacion: row.horaCitacion || '05:00',
+            tarifaJornada: tarifa,
+          };
+        }),
+        notasSeguridad: saved.notasSeguridad || '',
+        hospitalesCercanos: saved.hospitalesCercanos || '',
+        costosLogisticos: saved.costosLogisticos || { crewFreelanceTotal: 0 },
+      };
+    }
+
+    function readCallSheetFromForm() {
+      const talent = [];
+      document.querySelectorAll('#call-sheet-cast-body tr[data-actor-id]').forEach((row) => {
+        talent.push({
+          actorId: row.dataset.actorId,
+          horaCitacion: row.querySelector('[data-field="citacion"]')?.value || '',
+          horaMaquillaje: row.querySelector('[data-field="maquillaje"]')?.value || '',
+        });
+      });
+      const crew = [];
+      document.querySelectorAll('#call-sheet-crew-body tr[data-crew-id]').forEach((row) => {
+        crew.push({
+          crewId: row.dataset.crewId,
+          horaCitacion: row.querySelector('[data-field="crew-citacion"]')?.value || '',
+          tarifaJornada: row.dataset.tarifa != null && row.dataset.tarifa !== '' ? Number(row.dataset.tarifa) : null,
+        });
+      });
+      return {
+        productionDate: document.getElementById('cs-production-date').value,
+        talent,
+        crew,
+        notasSeguridad: document.getElementById('cs-safety-notes').value.trim(),
+        hospitalesCercanos: document.getElementById('cs-hospitals').value.trim(),
+      };
+    }
+
+    function saveCallSheetDraft() {
+      const draft = FrameFlowDB.recalcCallSheetLogistics(readCallSheetFromForm());
+      callSheetDraft = draft;
+      FrameFlowDB.updateProject(projectId, { hojaLlamado: draft });
+      updateCrewLogisticsDisplay(draft);
+      updateBudgetUI();
+    }
+
+    function updateCrewLogisticsDisplay(draft) {
+      const total = draft?.costosLogisticos?.crewFreelanceTotal ?? FrameFlowDB.getProjectCrewLogisticsCost({ hojaLlamado: draft });
+      document.getElementById('cs-crew-logistics-total').textContent = formatBudget(total);
+    }
+
+    function renderCallSheetCrewRows() {
+      const crewRows = callSheetDraft?.crew || [];
+      const empty = document.getElementById('call-sheet-crew-empty');
+      const wrap = document.getElementById('call-sheet-crew-wrap');
+      empty.classList.toggle('hidden', crewRows.length > 0);
+      wrap.classList.toggle('hidden', crewRows.length === 0);
+
+      document.getElementById('call-sheet-crew-body').innerHTML = crewRows.map((row) => {
+        const m = FrameFlowDB.getCrewMember(row.crewId);
+        if (!m) return '';
+        const isFreelancer = m.contrato === 'freelancer';
+        const tarifa = isFreelancer ? (row.tarifaJornada ?? m.tarifaJornada ?? 0) : null;
+        const tarifaCell = isFreelancer
+          ? `<span class="font-medium text-cyan-400">${formatBudget(tarifa)}</span>`
+          : '<span class="text-zinc-600">—</span>';
+        return `
+          <tr data-crew-id="${m.id}" data-tarifa="${tarifa != null ? tarifa : ''}">
+            <td class="px-4 py-3">
+              <p class="font-medium text-zinc-200">${escapeHtml(m.nombre)}</p>
+              <p class="text-[10px] text-zinc-600">${escapeHtml(m.email)}</p>
+            </td>
+            <td class="px-4 py-3 text-zinc-400">${escapeHtml(m.rol)}</td>
+            <td class="px-4 py-3">
+              <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold ${isFreelancer ? 'bg-amber-500/15 text-amber-400' : 'bg-zinc-700/50 text-zinc-400'}">${escapeHtml(CREW_CONTRACTS[m.contrato] || m.contrato)}</span>
+            </td>
+            <td class="px-4 py-3">
+              <input type="time" data-field="crew-citacion" value="${escapeHtml(row.horaCitacion || '05:00')}" class="rounded-lg border border-zinc-700 bg-zinc-800/80 px-2 py-1.5 text-xs text-zinc-100 [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none" />
+            </td>
+            <td class="px-4 py-3">${tarifaCell}</td>
+            <td class="no-print px-4 py-3">
+              <button type="button" class="cs-crew-remove rounded-lg p-1.5 text-zinc-600 hover:bg-red-500/10 hover:text-red-400" data-crew-id="${m.id}" aria-label="Quitar">
+                <i data-lucide="x" class="h-4 w-4"></i>
+              </button>
+            </td>
+          </tr>`;
+      }).join('');
+      updateCrewLogisticsDisplay(callSheetDraft);
+      lucide.createIcons();
+    }
+
+    function renderCrewSuggestions(query) {
+      const box = document.getElementById('cs-crew-suggestions');
+      const assigned = new Set((callSheetDraft?.crew || []).map((c) => c.crewId));
+      const results = FrameFlowDB.searchCrewMembers(query).filter((m) => !assigned.has(m.id));
+
+      if (!results.length) {
+        box.innerHTML = `<p class="px-4 py-3 text-xs text-zinc-500">${query ? 'Sin coincidencias' : 'Registra crew en Configuración'}</p>`;
+        box.classList.remove('hidden');
+        return;
+      }
+      box.innerHTML = results.map((m) => {
+        const sub = `${m.rol} · ${CREW_CONTRACTS[m.contrato] || m.contrato}${m.contrato === 'freelancer' && m.tarifaJornada ? ' · ' + formatBudget(m.tarifaJornada) + '/j' : ''}`;
+        return `
+          <button type="button" class="crew-suggest-item w-full px-4 py-2.5 text-left hover:bg-zinc-800" data-crew-pick="${m.id}">
+            <span class="block text-sm font-medium text-zinc-200">${escapeHtml(m.nombre)}</span>
+            <span class="block text-[10px] text-zinc-500">${escapeHtml(sub)}</span>
+          </button>`;
+      }).join('');
+      box.classList.remove('hidden');
+    }
+
+    function addCrewToCallSheet(crewId) {
+      const member = FrameFlowDB.getCrewMember(crewId);
+      if (!member) return;
+      if ((callSheetDraft.crew || []).some((c) => c.crewId === crewId)) return;
+      const tarifa = member.contrato === 'freelancer' ? (Number(member.tarifaJornada) || 0) : null;
+      callSheetDraft.crew = [...(callSheetDraft.crew || []), {
+        crewId: member.id,
+        horaCitacion: '05:00',
+        tarifaJornada: tarifa,
+      }];
+      saveCallSheetDraft();
+      renderCallSheetCrewRows();
+      document.getElementById('cs-crew-search').value = '';
+      document.getElementById('cs-crew-suggestions').classList.add('hidden');
+      toast(member.contrato === 'freelancer'
+        ? `${member.nombre} añadido · ${formatBudget(tarifa)} inyectado a costos logísticos`
+        : `${member.nombre} añadido al llamado`);
+    }
+
+    function bindCallSheetCrewSearch() {
+      const input = document.getElementById('cs-crew-search');
+      const box = document.getElementById('cs-crew-suggestions');
+
+      input.addEventListener('focus', () => renderCrewSuggestions(input.value.trim()));
+      input.addEventListener('input', () => renderCrewSuggestions(input.value.trim()));
+
+      box.addEventListener('click', (e) => {
+        const pick = e.target.closest('[data-crew-pick]');
+        if (pick) addCrewToCallSheet(pick.dataset.crewPick);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('#cs-crew-search') && !e.target.closest('#cs-crew-suggestions')) {
+          box.classList.add('hidden');
+        }
+      });
+
+      document.getElementById('call-sheet-crew-body').addEventListener('change', (e) => {
+        if (e.target.matches('[data-field="crew-citacion"]')) saveCallSheetDraft();
+      });
+
+      document.getElementById('call-sheet-crew-body').addEventListener('click', (e) => {
+        const btn = e.target.closest('.cs-crew-remove');
+        if (!btn) return;
+        callSheetDraft.crew = (callSheetDraft.crew || []).filter((c) => c.crewId !== btn.dataset.crewId);
+        saveCallSheetDraft();
+        renderCallSheetCrewRows();
+      });
+    }
+    function formatDateES(iso) {
+      if (!iso) return '—';
+      return new Date(iso + 'T12:00:00').toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    function getLocDisplay(loc) {
+      const ub = loc.ubicacion || {};
+      const meta = LOC_META[loc.id] || {};
+      const sector = ub.sector || '';
+      const ciudad = ub.ciudad || 'Guayaquil';
+      const pais = ub.pais ? `, ${ub.pais}` : ', Ecuador';
+      return {
+        name: loc.nombre,
+        address: meta.direccion || `${sector}, ${ciudad}${pais}`,
+        coords: meta.lat != null ? `${meta.lat.toFixed(4)}, ${meta.lng.toFixed(4)}` : 'Coordenadas por confirmar',
+        mapUrl: meta.lat != null ? `https://www.google.com/maps?q=${meta.lat},${meta.lng}` : null,
+      };
+    }
+
+    function renderCallSheetModal(p) {
+      callSheetDraft = buildCallSheetDraft(p);
+      const locs = (p.locaciones || []).map(FrameFlowDB.getLocacion).filter(Boolean);
+      const primaryLoc = locs[0];
+      const locEmpty = document.getElementById('call-sheet-loc-empty');
+      const locData = document.getElementById('call-sheet-loc-data');
+      locEmpty.classList.toggle('hidden', !!primaryLoc);
+      locData.classList.toggle('hidden', !primaryLoc);
+
+      if (primaryLoc) {
+        const d = getLocDisplay(primaryLoc);
+        document.getElementById('cs-loc-name').textContent = d.name;
+        document.getElementById('cs-loc-address').textContent = d.address;
+        document.getElementById('cs-loc-coords').innerHTML = d.mapUrl
+          ? `<i data-lucide="crosshair" class="h-3 w-3"></i> <a href="${d.mapUrl}" target="_blank" rel="noopener" class="hover:underline">${d.coords}</a>`
+          : d.coords;
+      }
+
+      document.getElementById('cs-production-date').value = callSheetDraft.productionDate;
+      document.getElementById('cs-safety-notes').value = callSheetDraft.notasSeguridad;
+      document.getElementById('cs-hospitals').value = callSheetDraft.hospitalesCercanos;
+
+      const cast = (p.actores || []).map(FrameFlowDB.getActor).filter(Boolean);
+      const castEmpty = document.getElementById('call-sheet-cast-empty');
+      const castWrap = document.getElementById('call-sheet-cast-wrap');
+      castEmpty.classList.toggle('hidden', cast.length > 0);
+      castWrap.classList.toggle('hidden', cast.length === 0);
+
+      document.getElementById('call-sheet-cast-body').innerHTML = cast.map((a) => {
+        const row = callSheetDraft.talent.find((t) => t.actorId === a.id) || {};
+        return `
+          <tr data-actor-id="${a.id}">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
+                <img src="${escapeHtml(a.imagen)}" alt="" class="h-9 w-9 rounded-lg object-cover object-top" />
+                <span class="font-medium text-zinc-200">${escapeHtml(a.nombre)}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-zinc-400">${escapeHtml(TIPO_ACTOR_LABELS[a.tipo] || a.tipo)}</td>
+            <td class="px-4 py-3">
+              <input type="time" data-field="citacion" value="${escapeHtml(row.horaCitacion || '06:00')}" class="rounded-lg border border-zinc-700 bg-zinc-800/80 px-2 py-1.5 text-xs text-zinc-100 [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none" />
+            </td>
+            <td class="px-4 py-3">
+              <input type="time" data-field="maquillaje" value="${escapeHtml(row.horaMaquillaje || '05:30')}" class="rounded-lg border border-zinc-700 bg-zinc-800/80 px-2 py-1.5 text-xs text-zinc-100 [color-scheme:dark] focus:border-cyan-500/50 focus:outline-none" />
+            </td>
+          </tr>`;
+      }).join('');
+
+      renderCallSheetCrewRows();
+      setCallSheetTab(activeCallSheetTab);
+      document.getElementById('call-sheet-title').textContent = `Hoja de Llamado — ${p.name}`;
+      lucide.createIcons();
+    }
+
+    function openCallSheetModal() {
+      const p = FrameFlowDB.getProject(projectId);
+      if (!p) return;
+      renderCallSheetModal(p);
+      const modal = document.getElementById('call-sheet-modal');
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function closeCallSheetModal() {
+      document.getElementById('call-sheet-modal').classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+    }
+
+    async function exportCallSheet() {
+      saveCallSheetDraft();
+      const shareUrl = `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(projectId)}&hoja=1`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: `Hoja de Llamado — ${FrameFlowDB.getProject(projectId)?.name}`, url: shareUrl });
+        } else {
+          await navigator.clipboard.writeText(shareUrl);
+          toast('Enlace copiado al portapapeles');
+        }
+      } catch {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          toast('Enlace copiado al portapapeles');
+        } catch {
+          toast('No se pudo compartir el enlace');
+        }
+      }
+      setTimeout(() => window.print(), 300);
+    }
+
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
     function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 2200); }
+
+    function updateProgressUI(p) {
+      const progress = getEffectiveProgress(p);
+      document.getElementById('p-progress-label').textContent = `${progress}%`;
+      const bar = document.getElementById('p-progress-bar');
+      bar.style.width = `${progress}%`;
+      bar.className = `progress-fill h-full rounded-full bg-gradient-to-r ${getColor(p.colorIndex).bar}`;
+      const tareas = p.tareas || [];
+      const done = tareas.filter((t) => t.done).length;
+      document.getElementById('p-progress-hint').textContent = tareas.length
+        ? `${done} de ${tareas.length} tareas completadas`
+        : 'Añade tareas para calcular el progreso automáticamente.';
+    }
+
+    function updateBudgetUI() {
+      const summary = FrameFlowDB.getProjectBudgetSummary(projectId);
+      if (!summary) return;
+      const el = document.getElementById('p-budget-remaining');
+      const cls = summary.remaining < 0 ? 'text-red-400' : 'text-emerald-400/90';
+      el.className = `mt-1 text-[10px] ${cls}`;
+      el.textContent = `Comprometido: ${formatBudget(summary.spent)}${summary.crewLogistics ? ` (incl. crew ${formatBudget(summary.crewLogistics)})` : ''} · Disponible: ${formatBudget(summary.remaining)}`;
+      FrameFlowUI.showBudgetAlert(summary, document.getElementById('budget-alert'));
+    }
+
+    function renderPendingReviews(p) {
+      const section = document.getElementById('reviews-section');
+      const isFinal = p.status === 'finalizado';
+      section.classList.toggle('hidden', !isFinal);
+      if (!isFinal) return;
+      const locs = (p.locaciones || []).map(FrameFlowDB.getLocacion).filter(Boolean);
+      const cast = (p.actores || []).map(FrameFlowDB.getActor).filter(Boolean);
+      const resources = [
+        ...locs.map((l) => ({ id: l.id, type: 'locacion', name: l.nombre })),
+        ...cast.map((a) => ({ id: a.id, type: 'actor', name: a.nombre })),
+      ];
+      const existing = FrameFlowDB.getProjectReviews(projectId);
+      const container = document.getElementById('pending-reviews');
+      if (!resources.length) {
+        container.innerHTML = '<p class="text-sm text-zinc-500">No hay recursos vinculados para reseñar.</p>';
+        return;
+      }
+      container.innerHTML = resources.map((r) => {
+        const rev = existing.find((x) => x.resourceId === r.id);
+        if (rev) {
+          return `<div class="rounded-lg border border-zinc-800 bg-zinc-900/50 p-4"><p class="text-sm font-medium text-zinc-200">${escapeHtml(r.name)}</p><p class="text-xs text-amber-400 mt-1">${'★'.repeat(rev.rating)} · Reseña enviada</p></div>`;
+        }
+        return `
+          <form class="review-form rounded-lg border border-zinc-800 bg-zinc-900/50 p-4 space-y-3" data-resource-id="${r.id}" data-resource-type="${r.type}">
+            <p class="text-sm font-medium text-zinc-200">${escapeHtml(r.name)} <span class="text-zinc-500 text-xs">(${r.type === 'locacion' ? 'Locación' : 'Talento'})</span></p>
+            <div class="flex gap-1" role="group" aria-label="Calificación">
+              ${[1,2,3,4,5].map((n) => `<button type="button" class="star-btn text-xl text-zinc-600 hover:text-amber-400" data-rating="${n}">★</button>`).join('')}
+            </div>
+            <input type="hidden" name="rating" value="5" />
+            <textarea name="comment" rows="2" placeholder="Comentario opcional..." class="w-full rounded-lg border border-zinc-700 bg-zinc-800/80 px-3 py-2 text-sm resize-none focus:outline-none"></textarea>
+            <button type="submit" class="rounded-lg bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/30">Enviar reseña</button>
+          </form>`;
+      }).join('');
+      container.querySelectorAll('.review-form').forEach((form) => {
+        let rating = 5;
+        form.querySelectorAll('.star-btn').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            rating = Number(btn.dataset.rating);
+            form.querySelector('[name=rating]').value = rating;
+            form.querySelectorAll('.star-btn').forEach((s, i) => {
+              s.classList.toggle('text-amber-400', i < rating);
+              s.classList.toggle('text-zinc-600', i >= rating);
+            });
+          });
+        });
+        form.querySelectorAll('.star-btn').forEach((s, i) => { if (i < 5) s.classList.add('text-amber-400'); });
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          FrameFlowDB.saveReview({
+            projectId,
+            resourceId: form.dataset.resourceId,
+            resourceType: form.dataset.resourceType,
+            rating,
+            comment: form.querySelector('[name=comment]').value.trim(),
+          });
+          renderPendingReviews(FrameFlowDB.getProject(projectId));
+          toast('Reseña guardada');
+        });
+      });
+    }
 
     function renderTasks(tareas) {
       const ul = document.getElementById('task-list');
       if (!tareas.length) { ul.innerHTML = '<li class="text-sm text-zinc-500">Sin tareas.</li>'; return; }
       ul.innerHTML = tareas.map((t) => `
         <li class="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2">
-          <input type="checkbox" data-task-id="${t.id}" ${t.done ? 'checked' : ''} class="rounded border-zinc-600 bg-zinc-800 text-cyan-500" />
+          <input type="checkbox" data-task-id="${t.id}" ${t.done ? 'checked' : ''} class="task-check rounded border-zinc-600 bg-zinc-800 text-cyan-500" />
           <span class="flex-1 text-sm ${t.done ? 'text-zinc-500 line-through' : 'text-zinc-200'}">${escapeHtml(t.text)}</span>
           <button type="button" data-del-task="${t.id}" class="text-zinc-600 hover:text-red-400 p-1"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i></button>
         </li>`).join('');
       lucide.createIcons();
+    }
+
+    function refreshProgressFromTasks() {
+      const p = FrameFlowDB.getProject(projectId);
+      if (!p) return;
+      const tareas = [...(p.tareas || [])];
+      document.querySelectorAll('#task-list .task-check').forEach((cb) => {
+        const t = tareas.find((x) => x.id === cb.dataset.taskId);
+        if (t) t.done = cb.checked;
+      });
+      const progress = calcTaskProgress(tareas);
+      FrameFlowDB.updateProject(projectId, { tareas, progress });
+      updateProgressUI({ ...p, tareas, progress });
     }
 
     function renderLinkedResources(p) {
@@ -129,25 +723,24 @@
       document.getElementById('p-start').value = p.start;
       document.getElementById('p-end').value = p.end;
       document.getElementById('p-desc').value = p.description || '';
-      document.getElementById('p-progress').value = p.progress;
-      document.getElementById('p-progress-label').textContent = `${p.progress}%`;
-      const bar = document.getElementById('p-progress-bar');
-      bar.style.width = `${p.progress}%`;
-      bar.className = `progress-fill h-full rounded-full bg-gradient-to-r ${getColor(p.colorIndex).bar}`;
+      updateProgressUI(p);
       document.getElementById('p-status').innerHTML = Object.entries(STATUS_META).map(([k, v]) => `<option value="${k}" ${p.status === k ? 'selected' : ''}>${v.label}</option>`).join('');
       document.getElementById('p-color').innerHTML = COLOR_NAMES.map((n, i) => `<option value="${i}" ${p.colorIndex === i ? 'selected' : ''}>${n}</option>`).join('');
       renderTasks(p.tareas || []);
       renderLinkedResources(p);
+      updateBudgetUI();
+      renderPendingReviews(p);
     }
 
     function collectAndSave() {
       const p = FrameFlowDB.getProject(projectId);
       if (!p) return;
       const tareas = [...(p.tareas || [])];
-      document.querySelectorAll('#task-list input[type=checkbox]').forEach((cb) => {
+      document.querySelectorAll('#task-list .task-check').forEach((cb) => {
         const t = tareas.find((x) => x.id === cb.dataset.taskId);
         if (t) t.done = cb.checked;
       });
+      const progress = calcTaskProgress(tareas);
       FrameFlowDB.updateProject(projectId, {
         status: document.getElementById('p-status').value,
         colorIndex: Number(document.getElementById('p-color').value),
@@ -155,16 +748,15 @@
         start: document.getElementById('p-start').value,
         end: document.getElementById('p-end').value,
         description: document.getElementById('p-desc').value.trim(),
-        progress: Number(document.getElementById('p-progress').value),
+        progress,
         tareas,
       });
       loadProject();
       toast('Cambios guardados');
     }
 
-    document.getElementById('p-progress').addEventListener('input', (e) => {
-      document.getElementById('p-progress-label').textContent = `${e.target.value}%`;
-      document.getElementById('p-progress-bar').style.width = `${e.target.value}%`;
+    document.getElementById('task-list').addEventListener('change', (e) => {
+      if (e.target.classList.contains('task-check')) refreshProgressFromTasks();
     });
 
     document.getElementById('task-form').addEventListener('submit', (e) => {
@@ -176,6 +768,7 @@
       FrameFlowDB.updateProject(projectId, { tareas });
       document.getElementById('task-input').value = '';
       renderTasks(tareas);
+      refreshProgressFromTasks();
     });
 
     document.getElementById('task-list').addEventListener('click', (e) => {
@@ -183,13 +776,61 @@
       if (!del) return;
       const p = FrameFlowDB.getProject(projectId);
       const tareas = (p.tareas || []).filter((t) => t.id !== del.dataset.delTask);
-      FrameFlowDB.updateProject(projectId, { tareas });
+      FrameFlowDB.updateProject(projectId, { tareas, progress: calcTaskProgress(tareas) });
       renderTasks(tareas);
+      refreshProgressFromTasks();
     });
 
+    document.getElementById('project-actions-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('project-actions-menu').classList.toggle('hidden');
+    });
+    document.addEventListener('click', () => document.getElementById('project-actions-menu').classList.add('hidden'));
+    document.getElementById('project-actions-menu').addEventListener('click', (e) => {
+      const opt = e.target.closest('.action-opt');
+      if (!opt) return;
+      const action = opt.dataset.action;
+      if (action === 'eliminar') {
+        if (confirm('¿Eliminar este proyecto permanentemente?')) {
+          FrameFlowDB.deleteProject(projectId);
+          window.location.href = 'proyectos.html';
+        }
+        return;
+      }
+      const status = action === 'finalizado' ? 'finalizado' : 'archivado';
+      FrameFlowDB.updateProject(projectId, { status, progress: status === 'finalizado' ? 100 : FrameFlowDB.getProject(projectId)?.progress });
+      loadProject();
+      toast(status === 'finalizado' ? 'Proyecto marcado como finalizado' : 'Proyecto archivado');
+      document.getElementById('project-actions-menu').classList.add('hidden');
+    });
+
+    document.getElementById('p-budget').addEventListener('change', updateBudgetUI);
+
     document.getElementById('btn-save').addEventListener('click', collectAndSave);
+
+    document.getElementById('btn-call-sheet').addEventListener('click', openCallSheetModal);
+    document.getElementById('call-sheet-close').addEventListener('click', closeCallSheetModal);
+    document.getElementById('call-sheet-backdrop').addEventListener('click', closeCallSheetModal);
+    document.getElementById('cs-export-btn').addEventListener('click', exportCallSheet);
+    document.getElementById('cs-production-date').addEventListener('change', saveCallSheetDraft);
+    document.getElementById('cs-safety-notes').addEventListener('blur', saveCallSheetDraft);
+    document.getElementById('cs-hospitals').addEventListener('blur', saveCallSheetDraft);
+    document.getElementById('call-sheet-cast-body').addEventListener('change', (e) => {
+      if (e.target.matches('input[type="time"]')) saveCallSheetDraft();
+    });
+    document.querySelectorAll('.cs-tab').forEach((btn) => {
+      btn.addEventListener('click', () => setCallSheetTab(btn.dataset.csTab));
+    });
+    bindCallSheetCrewSearch();
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !document.getElementById('call-sheet-modal').classList.contains('hidden')) closeCallSheetModal();
+    });
+
     FrameFlowSidebar.mount('sidebar-mount', 'proyectos');
     loadProject();
+    if (new URLSearchParams(location.search).get('hoja') === '1') {
+      requestAnimationFrame(openCallSheetModal);
+    }
     lucide.createIcons();
   </script>
 </body>

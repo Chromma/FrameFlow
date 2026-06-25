@@ -10,8 +10,23 @@
     alerts: 'ff_alerts',
     clients: 'ff_clients',
     user: 'ff_user',
+    lists: 'ff_interest_lists',
+    reviews: 'ff_reviews',
+    crew: 'ff_crew',
     initialized: 'ff_db_initialized_v1',
   };
+
+  const CREW_ROLES = [
+    'Dirección',
+    'Fotografía',
+    'Luces',
+    'Sonido',
+    'Arte',
+    'Maquillaje',
+    'Maquinaria',
+  ];
+
+  const CREW_CONTRACTS = { planta: 'Planta', freelancer: 'Freelancer' };
 
   const COLOR_PALETTE = [
     { bar: 'from-cyan-500 to-cyan-400', badge: 'bg-cyan-500/15 text-cyan-400', border: 'border-cyan-500/30' },
@@ -28,6 +43,7 @@
     planificacion: { label: 'Planificación', badge: 'bg-violet-500/15 text-violet-400' },
     produccion: { label: 'En Producción', badge: 'bg-cyan-500/15 text-cyan-400' },
     finalizado: { label: 'Finalizado', badge: 'bg-zinc-600/30 text-zinc-400' },
+    archivado: { label: 'Archivado', badge: 'bg-zinc-700/40 text-zinc-500' },
   };
 
   /** Catálogo estático de referencia (ids usados en asignaciones) */
@@ -41,10 +57,10 @@
       { id: 'loc-006', nombre: 'Terraza Skyline Urdesa', precioJornada: 540, imagen: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=400&fit=crop', ubicacion: { ciudad: 'Guayaquil', sector: 'Urdesa' } },
     ],
     actores: [
-      { id: 'a1', nombre: 'Valentina Ríos', tipo: 'cine', edad: 28, imagen: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Urdesa' } },
-      { id: 'a2', nombre: 'Mateo Duarte', tipo: 'teatro', edad: 34, imagen: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Samborondón' } },
-      { id: 'a3', nombre: 'Lucía Navarro', tipo: 'voz', edad: 24, imagen: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Centro Histórico' } },
-      { id: 'a4', nombre: 'Diego Salinas', tipo: 'cine', edad: 41, imagen: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' } },
+      { id: 'a1', nombre: 'Valentina Ríos', tipo: 'cine', edad: 28, precioJornada: 450, imagen: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Urdesa' } },
+      { id: 'a2', nombre: 'Mateo Duarte', tipo: 'teatro', edad: 34, precioJornada: 520, imagen: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Samborondón' } },
+      { id: 'a3', nombre: 'Lucía Navarro', tipo: 'voz', edad: 24, precioJornada: 380, imagen: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Centro Histórico' } },
+      { id: 'a4', nombre: 'Diego Salinas', tipo: 'cine', edad: 41, precioJornada: 600, imagen: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=faces', ubicacion: { ciudad: 'Guayaquil', sector: 'Puerto Santa Ana' } },
     ],
   };
 
@@ -100,7 +116,311 @@
       avatarInitials: 'AR',
       avatarUrl: '',
     });
+    write(KEYS.lists, [
+      { id: 'list-urdesa', name: 'Locaciones de Lujo Urdesa', items: [] },
+      { id: 'list-voces', name: 'Casting Voces Juveniles', items: [] },
+    ]);
+    write(KEYS.reviews, []);
+    write(KEYS.crew, []);
     localStorage.setItem(KEYS.initialized, '1');
+  }
+
+  function calcTaskProgress(tareas) {
+    if (!tareas || !tareas.length) return 0;
+    const done = tareas.filter((t) => t.done).length;
+    return Math.round((done / tareas.length) * 100);
+  }
+
+  function syncProjectProgressFromTasks(projectId) {
+    const p = getProject(projectId);
+    if (!p) return null;
+    const progress = calcTaskProgress(p.tareas);
+    return updateProject(projectId, { progress });
+  }
+
+  function getResourceCost(resourceType, resourceId) {
+    if (resourceType === 'locacion') {
+      const l = getLocacion(resourceId);
+      return l ? Number(l.precioJornada) || 0 : 0;
+    }
+    const a = getActor(resourceId);
+    return a ? Number(a.precioJornada) || 0 : 0;
+  }
+
+  function getProjectBudgetSummary(projectId) {
+    const p = getProject(projectId);
+    if (!p) return null;
+    let spent = 0;
+    (p.locaciones || []).forEach((id) => { spent += getResourceCost('locacion', id); });
+    (p.actores || []).forEach((id) => { spent += getResourceCost('actor', id); });
+    spent += getProjectCrewLogisticsCost(p);
+    const total = Number(p.budget) || 0;
+    return { total, spent, remaining: total - spent, crewLogistics: getProjectCrewLogisticsCost(p) };
+  }
+
+  function getCrewMembers() {
+    seedIfNeeded();
+    if (localStorage.getItem(KEYS.crew) === null) write(KEYS.crew, []);
+    return read(KEYS.crew, []);
+  }
+
+  function saveCrewMembers(list) {
+    write(KEYS.crew, list);
+  }
+
+  function getCrewMember(id) {
+    return getCrewMembers().find((m) => m.id === id) || null;
+  }
+
+  function addCrewMember(data) {
+    const list = getCrewMembers();
+    const member = {
+      id: 'crew-' + Date.now(),
+      nombre: String(data.nombre || '').trim(),
+      email: String(data.email || '').trim(),
+      telefono: String(data.telefono || '').trim(),
+      rol: data.rol || CREW_ROLES[0],
+      contrato: data.contrato === 'freelancer' ? 'freelancer' : 'planta',
+      tarifaJornada: data.contrato === 'freelancer' ? Number(data.tarifaJornada) || 0 : null,
+      createdAt: new Date().toISOString(),
+    };
+    list.unshift(member);
+    saveCrewMembers(list);
+    return member;
+  }
+
+  function updateCrewMember(id, patch) {
+    const list = getCrewMembers();
+    const idx = list.findIndex((m) => m.id === id);
+    if (idx === -1) return null;
+    const next = { ...list[idx], ...patch };
+    if (next.contrato !== 'freelancer') next.tarifaJornada = null;
+    else if (patch.tarifaJornada != null) next.tarifaJornada = Number(patch.tarifaJornada) || 0;
+    list[idx] = next;
+    saveCrewMembers(list);
+    return list[idx];
+  }
+
+  function deleteCrewMember(id) {
+    saveCrewMembers(getCrewMembers().filter((m) => m.id !== id));
+  }
+
+  function searchCrewMembers(query) {
+    const q = String(query || '').toLowerCase().trim();
+    const all = getCrewMembers();
+    if (!q) return all.slice(0, 12);
+    return all.filter((m) => {
+      const hay = `${m.nombre} ${m.email} ${m.telefono} ${m.rol} ${CREW_CONTRACTS[m.contrato] || m.contrato}`.toLowerCase();
+      return hay.includes(q);
+    }).slice(0, 12);
+  }
+
+  function getProjectCrewLogisticsCost(project) {
+    const rows = project?.hojaLlamado?.crew || [];
+    return rows.reduce((sum, row) => {
+      const member = getCrewMember(row.crewId);
+      if (!member || member.contrato !== 'freelancer') return sum;
+      const rate = row.tarifaJornada != null ? Number(row.tarifaJornada) : Number(member.tarifaJornada) || 0;
+      return sum + rate;
+    }, 0);
+  }
+
+  function recalcCallSheetLogistics(hojaLlamado) {
+    const crew = hojaLlamado?.crew || [];
+    const crewFreelanceTotal = crew.reduce((sum, row) => {
+      const member = getCrewMember(row.crewId);
+      if (!member || member.contrato !== 'freelancer') return sum;
+      const rate = row.tarifaJornada != null ? Number(row.tarifaJornada) : Number(member.tarifaJornada) || 0;
+      return sum + rate;
+    }, 0);
+    return {
+      ...(hojaLlamado || {}),
+      costosLogisticos: { crewFreelanceTotal },
+    };
+  }
+
+  function assignResourceWithBudget(projectId, resourceType, resourceId) {
+    const p = getProject(projectId);
+    if (!p) return { ok: false, reason: 'not_found' };
+    const key = resourceType === 'locacion' ? 'locaciones' : 'actores';
+    const already = (p[key] || []).includes(resourceId);
+    if (!already) assignResource(projectId, resourceType, resourceId);
+    const summary = getProjectBudgetSummary(projectId);
+    if (summary.remaining < 0) {
+      addBudgetAlert(projectId, resourceType, resourceId, summary);
+    }
+    return { ok: true, alreadyLinked: already, overBudget: summary.remaining < 0, summary };
+  }
+
+  function addBudgetAlert(projectId, resourceType, resourceId, summary) {
+    const p = getProject(projectId);
+    const name = resourceType === 'locacion'
+      ? (getLocacion(resourceId)?.nombre || resourceId)
+      : (getActor(resourceId)?.nombre || resourceId);
+    const list = getAlerts();
+    list.unshift({
+      id: 'a' + Date.now(),
+      severity: 'critico',
+      category: 'Presupuesto',
+      message: `Presupuesto excedido en «${p?.name}» al vincular ${name}. Restante: ${formatBudget(summary.remaining)}`,
+      time: 'Ahora',
+      read: false,
+      projectId,
+    });
+    saveAlerts(list);
+  }
+
+  function deleteProject(id) {
+    const list = getProjects().filter((p) => p.id !== id);
+    saveProjects(list);
+  }
+
+  function normalizeListItemType(type) {
+    if (type === 'actor') return 'casting';
+    return type;
+  }
+
+  function getInterestLists() {
+    seedIfNeeded();
+    let lists = read(KEYS.lists, []);
+    if (!lists.length) {
+      lists = [
+        { id: 'list-urdesa', name: 'Locaciones de Lujo Urdesa', items: [] },
+        { id: 'list-voces', name: 'Casting Voces Juveniles', items: [] },
+      ];
+      write(KEYS.lists, lists);
+    }
+    return lists;
+  }
+
+  function getInterestList(id) {
+    return getInterestLists().find((l) => l.id === id) || null;
+  }
+
+  function createInterestList(name) {
+    const trimmed = String(name || '').trim();
+    if (!trimmed) return null;
+    const lists = getInterestLists();
+    const list = { id: 'list-' + Date.now(), name: trimmed, items: [], createdAt: new Date().toISOString() };
+    lists.push(list);
+    saveInterestLists(lists);
+    return list;
+  }
+
+  function deleteInterestList(id) {
+    const lists = getInterestLists().filter((l) => l.id !== id);
+    saveInterestLists(lists);
+    return lists;
+  }
+
+  function saveInterestLists(lists) {
+    write(KEYS.lists, lists);
+  }
+
+  function addToInterestList(listId, item) {
+    const lists = getInterestLists();
+    const list = lists.find((l) => l.id === listId);
+    if (!list) return false;
+    const type = normalizeListItemType(item.type);
+    const exists = list.items.some((i) => i.id === item.id && normalizeListItemType(i.type) === type);
+    if (!exists) {
+      list.items.push({
+        id: item.id,
+        type,
+        name: item.name || '',
+        addedAt: item.addedAt || new Date().toISOString(),
+      });
+    }
+    saveInterestLists(lists);
+    return true;
+  }
+
+  function removeFromInterestList(listId, itemId, itemType) {
+    const lists = getInterestLists();
+    const list = lists.find((l) => l.id === listId);
+    if (!list) return false;
+    const type = normalizeListItemType(itemType);
+    list.items = list.items.filter(
+      (i) => !(i.id === itemId && normalizeListItemType(i.type) === type)
+    );
+    saveInterestLists(lists);
+    return true;
+  }
+
+  /** Enriquece un ítem de lista con datos del catálogo central */
+  function resolveListItem(item) {
+    const type = normalizeListItemType(item.type);
+    if (type === 'locacion') {
+      const loc = getLocacion(item.id);
+      if (!loc) return { ...item, type, resolved: false, missing: true };
+      return {
+        ...item,
+        type: 'locacion',
+        resolved: true,
+        name: loc.nombre,
+        imagen: loc.imagen,
+        precioJornada: loc.precioJornada,
+        ubicacion: loc.ubicacion,
+        detailUrl: `detalle-locacion.html?id=${encodeURIComponent(item.id)}`,
+        catalogUrl: 'catalogo.html?vista=locaciones',
+      };
+    }
+    if (type === 'casting') {
+      const actor = getActor(item.id);
+      if (!actor) return { ...item, type: 'casting', resolved: false, missing: true };
+      return {
+        ...item,
+        type: 'casting',
+        resolved: true,
+        name: actor.nombre,
+        imagen: actor.imagen,
+        precioJornada: actor.precioJornada,
+        ubicacion: actor.ubicacion,
+        actorTipo: actor.tipo,
+        edad: actor.edad,
+        detailUrl: `detalle-casting.html?id=${encodeURIComponent(item.id)}`,
+        catalogUrl: 'catalogo.html?vista=casting',
+      };
+    }
+    return { ...item, type, resolved: false, missing: true };
+  }
+
+  function resolveListItems(items) {
+    return (items || []).map(resolveListItem);
+  }
+
+  function countListItemsByType(items, tab) {
+    const all = items || [];
+    if (tab === 'all') return all.length;
+    if (tab === 'locacion') return all.filter((i) => normalizeListItemType(i.type) === 'locacion').length;
+    if (tab === 'casting') return all.filter((i) => normalizeListItemType(i.type) === 'casting').length;
+    return all.length;
+  }
+
+  function getProjectReviews(projectId) {
+    seedIfNeeded();
+    return read(KEYS.reviews, []).filter((r) => r.projectId === projectId);
+  }
+
+  function saveReview(data) {
+    const list = read(KEYS.reviews, []);
+    const review = {
+      id: 'rev' + Date.now(),
+      projectId: data.projectId,
+      resourceId: data.resourceId,
+      resourceType: data.resourceType,
+      rating: Number(data.rating) || 5,
+      comment: data.comment || '',
+      createdAt: new Date().toISOString(),
+    };
+    list.push(review);
+    write(KEYS.reviews, list);
+    return review;
+  }
+
+  function getEffectiveProgress(p) {
+    if (p.tareas && p.tareas.length) return calcTaskProgress(p.tareas);
+    return p.progress ?? 0;
   }
 
   function getProjects() {
@@ -247,7 +567,14 @@
     getProject,
     createProject,
     updateProject,
+    deleteProject,
     assignResource,
+    assignResourceWithBudget,
+    getProjectBudgetSummary,
+    getResourceCost,
+    calcTaskProgress,
+    syncProjectProgressFromTasks,
+    getEffectiveProgress,
     getAlerts,
     saveAlerts,
     markAlertRead,
@@ -255,6 +582,30 @@
     addClient,
     getUser,
     saveUser,
+    getInterestLists,
+    saveInterestLists,
+    getInterestList,
+    createInterestList,
+    deleteInterestList,
+    addToInterestList,
+    removeFromInterestList,
+    normalizeListItemType,
+    resolveListItem,
+    resolveListItems,
+    countListItemsByType,
+    CREW_ROLES,
+    CREW_CONTRACTS,
+    getCrewMembers,
+    saveCrewMembers,
+    getCrewMember,
+    addCrewMember,
+    updateCrewMember,
+    deleteCrewMember,
+    searchCrewMembers,
+    getProjectCrewLogisticsCost,
+    recalcCallSheetLogistics,
+    getProjectReviews,
+    saveReview,
     getLocacion,
     getActor,
     getColor,

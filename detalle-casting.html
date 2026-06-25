@@ -17,12 +17,66 @@
     ::-webkit-scrollbar-track { background: #18181b; }
     ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
     .booking-sticky { position: sticky; top: 88px; }
-    .cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 11px; border-radius: 8px; cursor: default; }
-    .cal-day.busy { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.25); }
-    .cal-day.free { background: rgba(16, 185, 129, 0.1); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.2); }
-    .cal-day.neutral { color: #a1a1aa; }
-    .cal-day.selected { ring: 2px solid #22d3ee; background: rgba(34, 211, 238, 0.15); color: #fff; }
-    .cal-day.other-month { opacity: 0.35; }
+    .photo-mosaic {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 8px;
+      height: min(56vh, 480px);
+      min-height: 280px;
+      border-radius: 16px;
+      overflow: hidden;
+      position: relative;
+    }
+    .photo-mosaic .mosaic-main {
+      grid-column: 1 / 3;
+      grid-row: 1 / 3;
+    }
+    .photo-mosaic button {
+      position: relative;
+      overflow: hidden;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      background: #27272a;
+    }
+    .photo-mosaic button img,
+    .photo-mosaic .mosaic-main img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.35s ease, filter 0.35s ease;
+    }
+    .photo-mosaic button:hover img {
+      transform: scale(1.03);
+      filter: brightness(1.08);
+    }
+    @media (max-width: 640px) {
+      .photo-mosaic {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 200px 100px 100px;
+        height: auto;
+      }
+      .photo-mosaic .mosaic-main { grid-column: 1 / 3; grid-row: 1; }
+    }
+    .ff-cal-compact .ff-cal-day {
+      width: 2rem;
+      height: 2rem;
+      aspect-ratio: auto;
+      font-size: 0.75rem;
+      border-radius: 8px;
+    }
+    @media (max-width: 640px) {
+      .ff-cal-compact #cal-days,
+      .ff-cal-compact #cal-weekdays { gap: 0.125rem; }
+      .ff-cal-compact #cal-weekdays span { font-size: 9px; }
+    }
+    .ff-cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 6px; }
+    .ff-cal-day.free { background: rgba(16, 185, 129, 0.08); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.15); }
+    .ff-cal-day.busy { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); }
+    .ff-cal-day.selected { background: rgba(34, 211, 238, 0.15); color: #fff; border: 1px solid rgba(34, 211, 238, 0.4); }
+    .ff-cal-day.other-month { opacity: 0.2; }
+    .lightbox-trigger { cursor: zoom-in; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .toast-show { animation: fadeIn 0.2s ease-out; }
   </style>
@@ -45,8 +99,8 @@
       </header>
 
       <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8">
-          <header class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div class="detail-page-inner mx-auto w-full max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8 transition-[max-width] duration-300">
+          <header class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 id="actor-name" class="text-2xl font-semibold text-white sm:text-3xl">Mateo Duarte</h1>
               <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-zinc-400">
@@ -62,38 +116,26 @@
               </div>
               <div id="actor-disciplines" class="mt-3 flex flex-wrap gap-2"></div>
             </div>
-            <div class="relative shrink-0" id="header-assign-wrap">
-              <button type="button" id="btn-assign-toggle" class="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900/80 px-4 py-2.5 text-sm font-medium text-zinc-200 hover:border-cyan-500/40 hover:text-cyan-400 transition-colors">
-                <i data-lucide="folder-plus" class="h-4 w-4"></i>
-                Vincular a proyecto
+            <div class="flex flex-wrap items-center gap-2 shrink-0">
+              <button type="button" id="btn-share" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white transition-colors">
+                <i data-lucide="share-2" class="h-4 w-4"></i> Compartir
               </button>
-              <div id="header-assign-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl"></div>
+              <div class="relative" id="header-assign-wrap">
+                <button type="button" id="btn-assign-toggle" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white transition-colors">
+                  <i data-lucide="folder-plus" class="h-4 w-4"></i>
+                  Vincular a Proyecto
+                </button>
+                <div id="header-assign-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl"></div>
+              </div>
             </div>
           </header>
 
+          <section class="relative mb-8" aria-label="Videoreel y composite">
+            <div id="photo-mosaic" class="photo-mosaic"></div>
+          </section>
+
           <div class="flex flex-col gap-10 lg:flex-row lg:gap-10">
-            <div class="min-w-0 flex-[1.5] lg:max-w-[60%] space-y-8">
-              <section aria-label="Videoreel">
-                <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <i data-lucide="play-circle" class="h-5 w-5 text-cyan-400"></i> Videoreel
-                </h2>
-                <div id="videoreel" class="relative aspect-video overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
-                  <img id="reel-poster" src="" alt="" class="absolute inset-0 h-full w-full object-cover opacity-60" />
-                  <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/20 to-transparent"></div>
-                  <button type="button" id="btn-play-reel" class="absolute left-1/2 top-1/2 z-10 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500/90 text-zinc-950 shadow-xl shadow-cyan-500/30 hover:scale-105 transition-transform" aria-label="Reproducir videoreel">
-                    <i data-lucide="play" class="h-8 w-8 ml-1"></i>
-                  </button>
-                  <p class="absolute bottom-4 left-4 text-xs font-medium text-zinc-300">Showreel 2025 · HD</p>
-                </div>
-              </section>
-
-              <section aria-label="Composite">
-                <h2 class="text-lg font-semibold text-white mb-3 flex items-center gap-2">
-                  <i data-lucide="layout-grid" class="h-5 w-5 text-cyan-400"></i> Composite
-                </h2>
-                <div id="composite-grid" class="grid grid-cols-2 gap-3"></div>
-              </section>
-
+            <div class="detail-main-col min-w-0 flex-[1.5] lg:max-w-[60%] space-y-8">
               <section>
                 <h2 class="text-lg font-semibold text-white mb-4">Habilidades técnicas y acentos</h2>
                 <div id="actor-skills" class="grid gap-3 sm:grid-cols-2"></div>
@@ -105,21 +147,24 @@
               </section>
             </div>
 
-            <aside class="lg:w-[38%] lg:shrink-0">
+            <aside class="detail-form-aside lg:w-[38%] lg:shrink-0 lg:max-w-[400px] transition-[width] duration-300">
               <div class="booking-sticky rounded-2xl border border-zinc-700/80 bg-zinc-900/60 p-5 shadow-2xl shadow-black/30">
-                <h2 class="text-sm font-semibold text-white mb-4 flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-white mb-3 flex items-center gap-2">
                   <i data-lucide="calendar-days" class="h-4 w-4 text-cyan-400"></i> Disponibilidad
                 </h2>
-                <div class="flex items-center justify-between mb-3">
-                  <button type="button" id="cal-prev" class="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-left" class="h-4 w-4"></i></button>
-                  <span id="cal-month-label" class="text-sm font-semibold text-white capitalize"></span>
-                  <button type="button" id="cal-next" class="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-right" class="h-4 w-4"></i></button>
-                </div>
-                <div id="cal-weekdays" class="grid grid-cols-7 gap-1 text-center text-[10px] font-medium text-zinc-500 mb-1"></div>
-                <div id="cal-days" class="grid grid-cols-7 gap-1 mb-4"></div>
-                <div class="flex gap-3 text-[10px] text-zinc-500 mb-5">
-                  <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-emerald-500/60"></span> Libre</span>
-                  <span class="flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-red-500/60"></span> En producción</span>
+                <div class="ff-cal-compact rounded-xl border border-zinc-700/80 p-3 mb-4">
+                  <div class="flex items-center justify-between mb-2">
+                    <button type="button" id="cal-prev" class="p-1 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-left" class="h-3.5 w-3.5"></i></button>
+                    <span id="cal-month-label" class="text-xs font-semibold text-white capitalize"></span>
+                    <button type="button" id="cal-next" class="p-1 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-right" class="h-3.5 w-3.5"></i></button>
+                  </div>
+                  <div id="cal-weekdays" class="grid grid-cols-7 gap-0.5 text-center text-[9px] font-medium text-zinc-500 mb-0.5"></div>
+                  <div id="cal-days" class="grid grid-cols-7 gap-0.5 mb-2"></div>
+                  <div class="flex gap-3 text-[9px] text-zinc-500">
+                    <span class="flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500/60"></span> Libre</span>
+                    <span class="flex items-center gap-1"><span class="h-1.5 w-1.5 rounded-full bg-red-500/60"></span> Ocupado</span>
+                  </div>
+                  <p class="mt-2 text-[9px] text-zinc-600">Dos clics: inicio y fin se ordenan automáticamente.</p>
                 </div>
 
                 <form id="casting-form" class="space-y-3 border-t border-zinc-800 pt-5">
@@ -152,6 +197,14 @@
                     Vincular a Proyecto / Convocar a Casting
                   </button>
                 </form>
+                <button
+                  type="button"
+                  id="btn-cotizar"
+                  class="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-3 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all"
+                >
+                  <i data-lucide="message-circle" class="h-4 w-4"></i>
+                  Cotizar / Contactar
+                </button>
                 <p class="mt-3 text-center text-[10px] text-zinc-500">Sin exposición de datos de contacto directo.</p>
               </div>
             </aside>
@@ -164,7 +217,9 @@
   <div id="toast" class="toast-show fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-emerald-500/30 bg-zinc-900 px-4 py-3 text-sm text-emerald-400 shadow-2xl" role="status"></div>
 
   <script src="db.js"></script>
+  <script src="chat.js"></script>
   <script src="sidebar.js"></script>
+  <script src="shared-ui.js"></script>
   <script>
     const { STATUS_META } = FrameFlowDB;
     const ACTORES = [
@@ -249,9 +304,8 @@
     ];
 
     const WEEKDAYS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa', 'Do'];
-    let calView = new Date(2026, 5, 1);
-    let calRangeState = { anchor: null, end: null };
     let currentActor = null;
+    let calendarApi = null;
 
     function escapeHtml(t) {
       const d = document.createElement('div');
@@ -266,7 +320,7 @@
 
     function renderAssignMenus(containerId, actorId) {
       const el = document.getElementById(containerId);
-      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
       el.innerHTML = `
         <button type="button" class="assign-opt w-full px-4 py-2.5 text-left text-sm text-cyan-400 hover:bg-zinc-800 flex items-center gap-2" data-project-id="new">
           <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
@@ -284,10 +338,11 @@
           e.stopPropagation();
           const pid = btn.dataset.projectId;
           if (pid === 'new') { window.location.href = 'index.html'; return; }
-          FrameFlowDB.assignResource(pid, 'actor', actorId);
+          if (pid === 'new') { window.location.href = 'index.html'; return; }
+          const result = FrameFlowDB.assignResourceWithBudget(pid, 'actor', actorId);
           const sel = document.getElementById('proyecto-destino');
           if (sel) sel.value = pid;
-          showToast('Añadido con éxito al proyecto');
+          showToast(result.overBudget ? 'Vinculado — presupuesto excedido' : 'Añadido con éxito al proyecto');
           document.getElementById('header-assign-menu').classList.add('hidden');
         });
       });
@@ -296,11 +351,49 @@
 
     function fillProjectSelect() {
       const sel = document.getElementById('proyecto-destino');
-      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
       sel.innerHTML = '<option value="">Seleccionar proyecto...</option>' +
         projects.map((p) =>
           `<option value="${p.id}">${escapeHtml(p.name)} (${STATUS_META[p.status]?.label || ''})</option>`
         ).join('');
+    }
+
+    function renderCastingMosaic(a) {
+      const mosaic = document.getElementById('photo-mosaic');
+      const composites = a.composite.slice(0, 4);
+      while (composites.length < 4) {
+        composites.push(composites[composites.length - 1] || { src: a.imagen, label: 'Composite' });
+      }
+
+      const mainCell = `
+        <div class="mosaic-main relative overflow-hidden bg-zinc-900">
+          <img id="reel-poster" src="${escapeHtml(a.imagen)}" alt="Videoreel de ${escapeHtml(a.nombre)}" class="h-full w-full object-cover object-top opacity-75" />
+          <div class="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/25 to-transparent pointer-events-none"></div>
+          <button type="button" id="btn-play-reel" class="absolute left-1/2 top-1/2 z-10 flex h-14 w-14 sm:h-16 sm:w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-cyan-500/90 text-zinc-950 shadow-xl shadow-cyan-500/30 hover:scale-105 transition-transform" aria-label="Reproducir videoreel">
+            <i data-lucide="play" class="h-7 w-7 sm:h-8 sm:w-8 ml-1"></i>
+          </button>
+          <p class="absolute bottom-3 left-3 text-[11px] font-medium text-zinc-300">Showreel 2025 · HD</p>
+        </div>
+      `;
+
+      const cells = composites.map((c, i) => `
+        <button type="button" class="lightbox-trigger" aria-label="${escapeHtml(c.label)}" data-lightbox-index="${i}">
+          <img src="${escapeHtml(c.src)}" alt="${escapeHtml(c.label)}" loading="lazy" />
+        </button>
+      `).join('');
+
+      mosaic.innerHTML = mainCell + cells;
+
+      mosaic.querySelectorAll('.lightbox-trigger').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          FrameFlowUI.openLightbox(a.composite.map((c) => ({ src: c.src, label: c.label })), Number(btn.dataset.lightboxIndex), a.nombre);
+        });
+      });
+
+      document.getElementById('btn-play-reel')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showToast('Reproducción de videoreel (demo)');
+      });
     }
 
     function renderActor(a) {
@@ -313,14 +406,7 @@
       document.getElementById('actor-disciplines').innerHTML = a.disciplinas.map((d) =>
         `<span class="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-400">${escapeHtml(d)}</span>`
       ).join('');
-      document.getElementById('reel-poster').src = a.imagen;
-      document.getElementById('reel-poster').alt = `Videoreel de ${a.nombre}`;
-      document.getElementById('composite-grid').innerHTML = a.composite.map((c) => `
-        <figure class="relative overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 aspect-square">
-          <img src="${c.src}" alt="${escapeHtml(c.label)}" class="h-full w-full object-cover object-top" loading="lazy" />
-          <figcaption class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-zinc-950/90 px-2 py-1.5 text-[10px] font-medium text-zinc-300">${escapeHtml(c.label)}</figcaption>
-        </figure>
-      `).join('');
+      renderCastingMosaic(a);
       document.getElementById('actor-skills').innerHTML = a.habilidades.map((h) => `
         <div class="flex items-center gap-3 rounded-xl border border-zinc-800/80 bg-zinc-900/40 px-4 py-3">
           <i data-lucide="${h.icon}" class="h-5 w-5 text-cyan-400 shrink-0"></i>
@@ -333,50 +419,18 @@
           <p class="mt-2 text-sm text-zinc-400 leading-relaxed">${escapeHtml(r.texto)}</p>
         </div>
       `).join('');
-      renderCalendar(a);
-      lucide.createIcons();
-    }
-
-    function isoDay(y, m, d) {
-      return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    }
-
-    function renderCalendar(actor) {
-      const y = calView.getFullYear();
-      const m = calView.getMonth();
-      const label = calView.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
-      document.getElementById('cal-month-label').textContent = label;
-      document.getElementById('cal-weekdays').innerHTML = WEEKDAYS.map((d) => `<span class="py-1">${d}</span>`).join('');
-      const first = new Date(y, m, 1);
-      const startPad = (first.getDay() + 6) % 7;
-      const daysInMonth = new Date(y, m + 1, 0).getDate();
-      const busy = new Set(actor.diasOcupados || []);
-      const desde = document.getElementById('rodaje-desde').value;
-      const hasta = document.getElementById('rodaje-hasta').value;
-      const rangeStart = desde && hasta ? (desde <= hasta ? desde : hasta) : (calRangeState.anchor || desde || '');
-      const rangeEnd = desde && hasta ? (desde <= hasta ? hasta : desde) : (calRangeState.end || '');
-      let html = '';
-      for (let i = 0; i < startPad; i++) html += '<span class="cal-day other-month"></span>';
-      for (let d = 1; d <= daysInMonth; d++) {
-        const iso = isoDay(y, m, d);
-        const isBusy = busy.has(iso);
-        const inRange = rangeStart && rangeEnd && iso >= rangeStart && iso <= rangeEnd;
-        const isAnchor = calRangeState.anchor === iso || (rangeStart && !rangeEnd && rangeStart === iso);
-        let cls = 'cal-day ';
-        cls += isBusy ? 'busy' : 'free';
-        if (inRange || isAnchor) cls += ' selected';
-        html += `<button type="button" class="${cls}" data-iso="${iso}" ${isBusy ? 'disabled' : ''}>${d}</button>`;
-      }
-      const grid = document.getElementById('cal-days');
-      grid.innerHTML = html;
-      const startInput = document.getElementById('rodaje-desde');
-      const endInput = document.getElementById('rodaje-hasta');
-      grid.querySelectorAll('.cal-day[data-iso]:not([disabled])').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          calRangeState = FrameFlowDB.applyCalendarRangeClick(btn.dataset.iso, calRangeState, startInput, endInput);
-          renderCalendar(actor);
-        });
+      calendarApi = FrameFlowUI.mountCompactCalendar({
+        monthLabelId: 'cal-month-label',
+        weekdaysId: 'cal-weekdays',
+        daysId: 'cal-days',
+        prevBtnId: 'cal-prev',
+        nextBtnId: 'cal-next',
+        busyDays: a.diasOcupados || [],
+        startInput: document.getElementById('rodaje-desde'),
+        endInput: document.getElementById('rodaje-hasta'),
+        initialDate: '2026-06-01',
       });
+      lucide.createIcons();
     }
 
     function showToast(msg) {
@@ -401,23 +455,32 @@
     });
     document.addEventListener('click', () => document.getElementById('header-assign-menu').classList.add('hidden'));
 
-    document.getElementById('cal-prev').addEventListener('click', () => {
-      calView.setMonth(calView.getMonth() - 1);
-      renderCalendar(currentActor);
+    document.getElementById('btn-share').addEventListener('click', async () => {
+      const url = window.location.href;
+      try {
+        if (navigator.share) await navigator.share({ title: actor.nombre, url });
+        else { await navigator.clipboard.writeText(url); showToast('Enlace copiado'); }
+      } catch { showToast('No se pudo compartir'); }
     });
-    document.getElementById('cal-next').addEventListener('click', () => {
-      calView.setMonth(calView.getMonth() + 1);
-      renderCalendar(currentActor);
-    });
-
-    document.getElementById('btn-play-reel').addEventListener('click', () => showToast('Reproducción de videoreel (demo)'));
 
     document.getElementById('casting-form').addEventListener('submit', (e) => {
       e.preventDefault();
       const proj = document.getElementById('proyecto-destino').value;
       if (!proj) { showToast('Selecciona un proyecto activo'); return; }
-      FrameFlowDB.assignResource(proj, 'actor', actor.id);
-      showToast('Añadido con éxito al proyecto');
+      const result = FrameFlowDB.assignResourceWithBudget(proj, 'actor', actor.id);
+      showToast(result.overBudget ? 'Vinculado — presupuesto excedido' : 'Añadido con éxito al proyecto');
+    });
+
+    document.getElementById('btn-cotizar').addEventListener('click', () => {
+      const dbActor = FrameFlowDB.getActor(actor.id);
+      FrameFlowUI.openChat({
+        resourceId: actor.id,
+        resourceType: 'actor',
+        name: actor.nombre,
+        avatar: actor.imagen,
+        roleBadge: dbActor ? (FrameFlowDB.TIPO_ACTOR_LABELS[dbActor.tipo] || dbActor.tipo) : (actor.disciplines?.[0] || 'Casting'),
+        price: dbActor?.precioJornada,
+      });
     });
 
     lucide.createIcons();

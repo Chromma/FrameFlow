@@ -84,6 +84,24 @@
     }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     .toast-show { animation: fadeIn 0.2s ease-out; }
+    .ff-cal-compact .ff-cal-day {
+      width: 2rem;
+      height: 2rem;
+      aspect-ratio: auto;
+      font-size: 0.75rem;
+      border-radius: 8px;
+    }
+    @media (max-width: 640px) {
+      .ff-cal-compact #cal-days,
+      .ff-cal-compact #cal-weekdays { gap: 0.125rem; }
+      .ff-cal-compact #cal-weekdays span { font-size: 9px; }
+    }
+    .ff-cal-day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 10px; border-radius: 6px; }
+    .ff-cal-day.free { background: rgba(16, 185, 129, 0.08); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.15); }
+    .ff-cal-day.busy { background: rgba(239, 68, 68, 0.12); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.2); opacity: 0.6; }
+    .ff-cal-day.selected { background: rgba(34, 211, 238, 0.15); color: #fff; border: 1px solid rgba(34, 211, 238, 0.4); }
+    .ff-cal-day.other-month { opacity: 0.2; }
+    .lightbox-trigger { cursor: zoom-in; }
   </style>
 </head>
 <body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="catalogo">
@@ -106,8 +124,8 @@
         </div>
       </header>
 
-      <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8">
+      <div class="flex-1 overflow-y-auto pb-24 lg:pb-0">
+        <div class="detail-page-inner mx-auto w-full max-w-[1120px] px-4 py-6 sm:px-6 lg:px-8 transition-[max-width] duration-300">
 
           <!-- 1. ENCABEZADO -->
           <header class="mb-6">
@@ -146,7 +164,7 @@
                 <div class="relative" id="assign-project-wrap">
                   <button type="button" id="btn-assign-project" class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:text-white transition-colors">
                     <i data-lucide="folder-plus" class="h-4 w-4"></i>
-                    <span>Vincular a proyecto</span>
+                    <span>Vincular a Proyecto</span>
                   </button>
                   <div id="assign-project-menu" class="hidden absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-zinc-700 bg-zinc-900 py-1 shadow-2xl shadow-black/50"></div>
                 </div>
@@ -167,9 +185,7 @@
 
           <!-- 3. LAYOUT DOS COLUMNAS -->
           <div class="flex flex-col gap-10 lg:flex-row lg:gap-12">
-
-            <!-- COLUMNA IZQUIERDA ~65% -->
-            <div class="min-w-0 flex-[1.85] lg:max-w-[65%]">
+            <div class="detail-main-col min-w-0 flex-[1.85] lg:max-w-[65%] transition-[max-width] duration-300">
 
               <div class="border-b border-zinc-800 pb-6">
                 <h2 id="loc-space-type" class="text-xl font-semibold text-white">Departamento entero de filmación</h2>
@@ -229,8 +245,7 @@
               </section>
             </div>
 
-            <!-- COLUMNA DERECHA ~35% — Caja de reserva -->
-            <aside class="lg:w-[340px] lg:shrink-0 lg:flex-[1]">
+            <aside class="detail-form-aside hidden lg:block lg:w-[340px] lg:shrink-0 lg:flex-[1] lg:max-w-[400px] transition-[width] duration-300">
               <div class="booking-sticky rounded-2xl border border-zinc-700/80 bg-zinc-900/60 p-6 shadow-2xl shadow-black/30 backdrop-blur-sm">
                 <div class="flex items-baseline gap-1.5">
                   <span id="booking-price" class="text-2xl font-semibold text-white">$920</span>
@@ -238,6 +253,17 @@
                 </div>
 
                 <form id="booking-form" class="mt-5 space-y-3">
+                  <div class="ff-cal-compact rounded-xl border border-zinc-700/80 p-3">
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1"><i data-lucide="calendar-days" class="h-3 w-3 text-cyan-400"></i> Calendario de rodaje</p>
+                    <div class="flex items-center justify-between mb-2">
+                      <button type="button" id="cal-prev" class="p-1 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-left" class="h-3.5 w-3.5"></i></button>
+                      <span id="cal-month-label" class="text-xs font-semibold text-white capitalize"></span>
+                      <button type="button" id="cal-next" class="p-1 rounded-lg text-zinc-500 hover:bg-zinc-800"><i data-lucide="chevron-right" class="h-3.5 w-3.5"></i></button>
+                    </div>
+                    <div id="cal-weekdays" class="grid grid-cols-7 gap-0.5 text-center text-[9px] font-medium text-zinc-500 mb-0.5"></div>
+                    <div id="cal-days" class="grid grid-cols-7 gap-0.5 mb-2"></div>
+                    <p class="text-[9px] text-zinc-600">Dos clics: selecciona inicio y fin (se ordenan automáticamente).</p>
+                  </div>
                   <div class="grid grid-cols-2 overflow-hidden rounded-xl border border-zinc-700">
                     <div class="border-r border-zinc-700 p-3">
                       <label for="fecha-entrada" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Entrada rodaje</label>
@@ -266,9 +292,18 @@
                   </div>
 
                   <button type="submit" class="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
-                    Vincular a Proyecto / Reservar
+                    Reservar
                   </button>
                 </form>
+
+                <button
+                  type="button"
+                  id="btn-cotizar"
+                  class="mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-3 text-sm font-semibold text-cyan-400 hover:bg-cyan-500/20 hover:border-cyan-500/50 transition-all"
+                >
+                  <i data-lucide="message-circle" class="h-4 w-4"></i>
+                  Cotizar / Contactar
+                </button>
 
                 <p class="mt-4 text-center text-[11px] text-zinc-500">
                   No se realizará ningún cargo hasta vincular con un proyecto activo en FrameFlow.
@@ -289,6 +324,21 @@
           </div>
         </div>
       </div>
+
+      <!-- Sticky footer móvil -->
+      <footer id="mobile-booking-bar" class="lg:hidden fixed bottom-0 left-0 right-0 z-30 border-t border-zinc-800/80 bg-zinc-950/95 backdrop-blur-xl px-4 py-3">
+        <div class="flex items-center justify-between gap-4">
+          <div class="min-w-0">
+            <div class="flex items-baseline gap-1">
+              <span id="mobile-booking-price" class="text-xl font-semibold text-white">$920</span>
+              <span class="text-sm text-zinc-400">/ jornada</span>
+            </div>
+          </div>
+          <button type="button" id="btn-reservar-mobile" class="shrink-0 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-6 py-3 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/25 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+            Reservar
+          </button>
+        </div>
+      </footer>
     </main>
   </div>
 
@@ -296,10 +346,13 @@
   <div id="toast" class="fixed bottom-6 left-1/2 z-50 hidden -translate-x-1/2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-200 shadow-2xl toast-show" role="status"></div>
 
   <script src="db.js"></script>
+  <script src="chat.js"></script>
   <script src="sidebar.js"></script>
+  <script src="shared-ui.js"></script>
   <script>
     const { STATUS_META } = FrameFlowDB;
     let currentLocId = null;
+    let currentLocData = null;
 
     const LOCACIONES = [
       {
@@ -536,14 +589,20 @@
       while (imgs.length < 5) imgs.push(imgs[0]);
 
       mosaic.innerHTML = imgs.map((src, i) => {
-        const cls = i === 0 ? 'mosaic-main' : '';
+        const cls = i === 0 ? 'mosaic-main lightbox-trigger' : 'lightbox-trigger';
         const alt = `${nombre} — foto ${i + 1}`;
         return `
-          <button type="button" class="${cls}" aria-label="${escapeHtml(alt)}">
+          <button type="button" class="${cls}" aria-label="${escapeHtml(alt)}" data-lightbox-index="${i}" data-lightbox-caption="${escapeHtml(alt)}">
             <img src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" loading="${i === 0 ? 'eager' : 'lazy'}" />
           </button>
         `;
       }).join('');
+      mosaic.querySelectorAll('.lightbox-trigger').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          FrameFlowUI.openLightbox(imagenes.map((s, idx) => ({ src: s, label: `Foto ${idx + 1}` })), Number(btn.dataset.lightboxIndex), nombre);
+        });
+      });
     }
 
     function renderAmenities(list) {
@@ -610,6 +669,7 @@
       renderAmenities(loc.amenidades);
       renderReviews(loc);
       document.getElementById('booking-price').textContent = formatPrice(loc.precioJornada);
+      document.getElementById('mobile-booking-price').textContent = formatPrice(loc.precioJornada);
 
       const highlight = document.getElementById('loc-highlight');
       if (rep.estrellas >= 4.8) {
@@ -630,14 +690,14 @@
 
     function fillProjectSelect() {
       const sel = document.getElementById('proyecto-destino-loc');
-      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
       sel.innerHTML = '<option value="">Seleccionar proyecto...</option>' +
         projects.map((p) => `<option value="${p.id}">${escapeHtml(p.name)} (${STATUS_META[p.status]?.label})</option>`).join('');
     }
 
     function renderAssignProjectMenu(locId) {
       const menu = document.getElementById('assign-project-menu');
-      const projects = FrameFlowDB.getProjects().filter((p) => p.status !== 'finalizado');
+      const projects = FrameFlowDB.getProjects().filter((p) => !['finalizado', 'archivado'].includes(p.status));
       menu.innerHTML = `
         <button type="button" class="assign-opt w-full px-4 py-2.5 text-left text-sm text-cyan-400 hover:bg-zinc-800 flex items-center gap-2" data-project-id="new">
           <i data-lucide="plus-circle" class="h-4 w-4"></i> [ + ] Crear nuevo cluster
@@ -655,16 +715,26 @@
           e.stopPropagation();
           const pid = btn.dataset.projectId;
           if (pid === 'new') { window.location.href = 'index.html'; return; }
-          FrameFlowDB.assignResource(pid, 'locacion', locId);
-          showToast('Añadido con éxito al proyecto');
+          const result = FrameFlowDB.assignResourceWithBudget(pid, 'locacion', locId);
+          showToast(result.overBudget ? 'Vinculado — presupuesto excedido' : 'Añadido con éxito al proyecto');
           menu.classList.add('hidden');
         });
       });
       lucide.createIcons();
     }
 
+    function goToConfirmarReserva(locId) {
+      const params = new URLSearchParams({ id: locId });
+      const entrada = document.getElementById('fecha-entrada')?.value;
+      const salida = document.getElementById('fecha-salida')?.value;
+      if (entrada) params.set('entrada', entrada);
+      if (salida) params.set('salida', salida);
+      window.location.href = `confirmar-reserva.html?${params}`;
+    }
+
     function bindActions(loc) {
       currentLocId = loc.id;
+      currentLocData = loc;
       document.getElementById('btn-share').addEventListener('click', async () => {
         const url = window.location.href;
         try {
@@ -697,12 +767,25 @@
         e.preventDefault();
         const proj = document.getElementById('proyecto-destino-loc').value;
         if (!proj) { showToast('Selecciona un proyecto activo'); return; }
-        FrameFlowDB.assignResource(proj, 'locacion', loc.id);
-        showToast('Añadido con éxito al proyecto');
+        const result = FrameFlowDB.assignResourceWithBudget(proj, 'locacion', loc.id);
+        showToast(result.overBudget ? 'Vinculado — presupuesto excedido' : 'Añadido con éxito al proyecto');
+      });
+
+      document.getElementById('btn-reservar-mobile').addEventListener('click', () => {
+        goToConfirmarReserva(loc.id);
+      });
+
+      document.getElementById('btn-cotizar').addEventListener('click', () => {
+        FrameFlowUI.openChat({
+          resourceId: loc.id,
+          resourceType: 'locacion',
+          name: loc.nombre,
+          avatar: loc.imagenes?.[0],
+          roleBadge: 'Locación',
+          price: loc.precioJornada,
+        });
       });
     }
-
-    let dateRangeState = { anchor: null, end: null };
 
     function bindDateRangeInputs() {
       const startEl = document.getElementById('fecha-entrada');
@@ -738,6 +821,17 @@
     renderLoc(loc);
     fillProjectSelect();
     bindActions(loc);
+    FrameFlowUI.mountCompactCalendar({
+      monthLabelId: 'cal-month-label',
+      weekdaysId: 'cal-weekdays',
+      daysId: 'cal-days',
+      prevBtnId: 'cal-prev',
+      nextBtnId: 'cal-next',
+      busyDays: loc.diasOcupados || loc.disponibilidad ? [] : [],
+      startInput: document.getElementById('fecha-entrada'),
+      endInput: document.getElementById('fecha-salida'),
+      initialDate: '2026-06-01',
+    });
     bindDateRangeInputs();
     setDefaultDates();
     lucide.createIcons();

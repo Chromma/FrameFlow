@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chat Interno | FrameFlow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #18181b; }
+    ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+    .chat-row-active { background: rgba(6, 182, 212, 0.08); border-color: rgba(34, 211, 238, 0.25); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .msg-enter { animation: fadeIn 0.18s ease-out; }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      75% { transform: translateX(4px); }
+    }
+    .security-shake { animation: shake 0.35s ease-in-out; }
+  </style>
+</head>
+<body class="h-full bg-zinc-950 text-zinc-100 font-sans antialiased" data-page="chat">
+
+  <div class="flex h-full min-h-screen">
+    <div id="sidebar-mount" class="contents"></div>
+
+    <main class="flex flex-1 flex-col min-w-0 overflow-hidden">
+      <header class="sticky top-0 z-20 shrink-0 border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur-xl px-4 py-4 sm:px-6 lg:px-8">
+        <div class="flex items-center gap-3">
+          <button id="menu-toggle" type="button" class="lg:hidden rounded-lg border border-zinc-700 bg-zinc-800/50 p-2 text-zinc-300" aria-label="Menú">
+            <i data-lucide="menu" class="h-5 w-5"></i>
+          </button>
+          <div>
+            <h1 class="text-lg font-semibold text-white sm:text-xl">Bandeja de Entrada</h1>
+            <p class="text-xs text-zinc-500">Comunicación segura con locaciones y talento</p>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex flex-1 min-h-0 overflow-hidden">
+        <!-- Columna izquierda: lista de conversaciones (35%) -->
+        <aside id="chat-inbox" class="flex w-full flex-col border-r border-zinc-800/80 bg-zinc-900/20 lg:w-[35%] lg:max-w-[420px] lg:shrink-0">
+          <div class="shrink-0 border-b border-zinc-800/80 px-4 py-3">
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"></i>
+              <input
+                id="inbox-search"
+                type="search"
+                placeholder="Buscar conversación..."
+                class="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 py-2 pl-9 pr-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                autocomplete="off"
+              />
+            </div>
+          </div>
+          <div id="conversation-list" class="flex-1 overflow-y-auto p-2 space-y-1" role="list"></div>
+          <p id="inbox-empty" class="hidden px-4 py-10 text-center text-sm text-zinc-500">
+            Sin conversaciones aún. Usa <span class="text-cyan-400">Cotizar / Contactar</span> en el catálogo.
+          </p>
+        </aside>
+
+        <!-- Columna derecha: ventana activa (65%) -->
+        <section id="chat-panel" class="hidden flex-1 flex-col min-w-0 bg-zinc-950 lg:flex">
+          <div id="chat-empty-state" class="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+            <div class="flex h-14 w-14 items-center justify-center rounded-2xl border border-zinc-800 bg-zinc-900/60">
+              <i data-lucide="messages-square" class="h-7 w-7 text-zinc-600"></i>
+            </div>
+            <p class="text-sm text-zinc-400">Selecciona una conversación o contacta un recurso desde el catálogo.</p>
+            <a href="catalogo.html" class="text-sm font-medium text-cyan-400 hover:text-cyan-300 transition-colors">Ir al catálogo →</a>
+          </div>
+
+          <div id="chat-active" class="hidden flex flex-1 flex-col min-h-0">
+            <!-- Cabecera del contacto -->
+            <header class="shrink-0 flex items-center gap-3 border-b border-zinc-800/80 bg-zinc-900/40 px-4 py-3 sm:px-5">
+              <button type="button" id="btn-back-inbox" class="lg:hidden rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200" aria-label="Volver a conversaciones">
+                <i data-lucide="arrow-left" class="h-5 w-5"></i>
+              </button>
+              <img id="chat-header-avatar" src="" alt="" class="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-zinc-800" />
+              <div class="min-w-0 flex-1">
+                <p id="chat-header-name" class="truncate text-sm font-semibold text-white"></p>
+                <span id="chat-header-badge" class="inline-flex mt-0.5 rounded-md bg-cyan-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-400 border border-cyan-500/20"></span>
+              </div>
+              <a id="chat-header-link" href="#" class="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-600 hover:text-zinc-200 transition-colors">
+                <i data-lucide="external-link" class="h-3.5 w-3.5"></i> Ver ficha
+              </a>
+            </header>
+
+            <!-- Mensajes con scroll independiente -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto px-4 py-4 sm:px-6 space-y-3" aria-live="polite"></div>
+
+            <!-- Barra inferior fija -->
+            <footer class="shrink-0 border-t border-zinc-800/80 bg-zinc-900/60 p-3 sm:p-4">
+              <p id="chat-security-alert" class="hidden mb-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300 security-shake" role="alert"></p>
+              <form id="chat-form" class="flex gap-2">
+                <input
+                  id="chat-input"
+                  type="text"
+                  placeholder="Escribe tu consulta..."
+                  class="flex-1 rounded-xl border border-zinc-700 bg-zinc-800/80 px-4 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                  autocomplete="off"
+                />
+                <button type="submit" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-600 px-4 py-2.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-cyan-500/20 hover:from-cyan-400 hover:to-cyan-500 transition-all">
+                  <i data-lucide="send" class="h-4 w-4"></i>
+                  <span class="hidden sm:inline">Enviar</span>
+                </button>
+              </form>
+            </footer>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="db.js"></script>
+  <script src="chat.js"></script>
+  <script src="sidebar.js"></script>
+  <script>
+    const { formatTime, escapeHtml, sendMessage, getConversations, getConversation, validateMessageSecurity, SECURITY_ALERT } = FrameFlowChat;
+
+    let activeId = null;
+    let inboxQuery = '';
+
+    function badgeClass(type) {
+      return type === 'actor'
+        ? 'bg-violet-500/10 text-violet-400 border-violet-500/20'
+        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+    }
+
+    function detailUrl(conv) {
+      if (conv.resourceType === 'actor') return `detalle-casting.html?id=${encodeURIComponent(conv.resourceId)}`;
+      return `detalle-locacion.html?id=${encodeURIComponent(conv.resourceId)}`;
+    }
+
+    function filteredConversations() {
+      const q = inboxQuery.toLowerCase();
+      const list = getConversations();
+      if (!q) return list;
+      return list.filter((c) =>
+        `${c.name} ${c.roleBadge} ${c.lastMessage?.text || ''}`.toLowerCase().includes(q)
+      );
+    }
+
+    /** Renderiza la lista lateral — en Socket.io, escuchar ff-chat-updated o room events */
+    function renderInbox() {
+      const list = filteredConversations();
+      const container = document.getElementById('conversation-list');
+      const empty = document.getElementById('inbox-empty');
+
+      if (list.length === 0) {
+        container.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      container.innerHTML = list.map((c) => {
+        const active = c.id === activeId;
+        const preview = c.lastMessage?.text || 'Sin mensajes';
+        const time = formatTime(c.lastMessage?.at || c.updatedAt);
+        const avatar = c.avatar
+          ? `<img src="${escapeHtml(c.avatar)}" alt="" class="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-zinc-800" />`
+          : `<div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-xs font-bold text-zinc-400">${escapeHtml(c.name.charAt(0))}</div>`;
+
+        return `
+          <button
+            type="button"
+            role="listitem"
+            data-conv-id="${escapeHtml(c.id)}"
+            class="chat-row w-full flex items-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left transition-colors hover:bg-zinc-800/50 ${active ? 'chat-row-active' : ''}"
+          >
+            ${avatar}
+            <div class="min-w-0 flex-1">
+              <div class="flex items-start justify-between gap-2">
+                <p class="truncate text-sm font-semibold text-white">${escapeHtml(c.name)}</p>
+                <span class="shrink-0 text-[10px] text-zinc-500 tabular-nums">${escapeHtml(time)}</span>
+              </div>
+              <span class="mt-0.5 inline-flex rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${badgeClass(c.resourceType)}">${escapeHtml(c.roleBadge)}</span>
+              <p class="mt-1 truncate text-xs text-zinc-500">${escapeHtml(preview)}</p>
+            </div>
+          </button>
+        `;
+      }).join('');
+
+      container.querySelectorAll('[data-conv-id]').forEach((btn) => {
+        btn.addEventListener('click', () => selectConversation(btn.dataset.convId));
+      });
+    }
+
+    /** Pinta globos — sender 'user' = enviado (cyan), 'contact' = recibido (gris) */
+    function renderMessages(conv) {
+      const box = document.getElementById('chat-messages');
+      if (!conv?.messages?.length) {
+        box.innerHTML = '<p class="text-center text-sm text-zinc-600 py-8">Inicia la conversación con tu consulta.</p>';
+        return;
+      }
+
+      box.innerHTML = conv.messages.map((m) => {
+        const isUser = m.sender === 'user';
+        const cls = isUser
+          ? 'ml-auto max-w-[85%] rounded-2xl rounded-br-md border border-cyan-500/30 bg-gradient-to-br from-cyan-500/20 to-cyan-600/10 px-4 py-2.5 text-sm text-zinc-100'
+          : 'mr-auto max-w-[85%] rounded-2xl rounded-bl-md border border-zinc-700/80 bg-zinc-800/70 px-4 py-2.5 text-sm text-zinc-300';
+        const timeCls = isUser ? 'text-cyan-200/50' : 'text-zinc-500';
+        return `
+          <div class="msg-enter flex flex-col ${isUser ? 'items-end' : 'items-start'}">
+            <div class="${cls}">${escapeHtml(m.text)}</div>
+            <span class="mt-1 px-1 text-[10px] ${timeCls}">${escapeHtml(formatTime(m.at))}</span>
+          </div>
+        `;
+      }).join('');
+
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function showSecurityAlert(msg) {
+      const el = document.getElementById('chat-security-alert');
+      el.textContent = msg || SECURITY_ALERT;
+      el.classList.remove('hidden');
+      el.classList.remove('security-shake');
+      void el.offsetWidth;
+      el.classList.add('security-shake');
+      clearTimeout(showSecurityAlert._t);
+      showSecurityAlert._t = setTimeout(() => el.classList.add('hidden'), 6000);
+    }
+
+    function hideSecurityAlert() {
+      document.getElementById('chat-security-alert').classList.add('hidden');
+    }
+
+    function updateMobileLayout(showChat) {
+      const inbox = document.getElementById('chat-inbox');
+      const panel = document.getElementById('chat-panel');
+      if (window.innerWidth >= 1024) {
+        inbox.classList.remove('hidden');
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+        return;
+      }
+      if (showChat) {
+        inbox.classList.add('hidden');
+        panel.classList.remove('hidden');
+        panel.classList.add('flex');
+      } else {
+        inbox.classList.remove('hidden');
+        panel.classList.add('hidden');
+        panel.classList.remove('flex');
+      }
+    }
+
+    function selectConversation(id, pushState) {
+      const conv = getConversation(id);
+      if (!conv) return;
+
+      activeId = id;
+      hideSecurityAlert();
+
+      document.getElementById('chat-empty-state').classList.add('hidden');
+      document.getElementById('chat-active').classList.remove('hidden');
+      document.getElementById('chat-active').classList.add('flex');
+
+      document.getElementById('chat-header-name').textContent = conv.name;
+      document.getElementById('chat-header-badge').textContent = conv.roleBadge;
+      const av = document.getElementById('chat-header-avatar');
+      if (conv.avatar) {
+        av.src = conv.avatar;
+        av.alt = conv.name;
+        av.classList.remove('hidden');
+      } else {
+        av.classList.add('hidden');
+      }
+
+      const link = document.getElementById('chat-header-link');
+      link.href = detailUrl(conv);
+      link.classList.remove('hidden');
+
+      renderMessages(conv);
+      renderInbox();
+      updateMobileLayout(true);
+
+      if (pushState !== false) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('c', id);
+        history.replaceState({}, '', url);
+      }
+
+      document.getElementById('chat-input').focus();
+    }
+
+    function handleSend(e) {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const text = input.value.trim();
+      if (!activeId) return;
+
+      const preCheck = validateMessageSecurity(text);
+      if (!preCheck.ok) {
+        showSecurityAlert(preCheck.alert);
+        return;
+      }
+
+      const result = sendMessage(activeId, text, 'user');
+      if (!result.success) {
+        showSecurityAlert(result.alert);
+        return;
+      }
+
+      input.value = '';
+      hideSecurityAlert();
+      selectConversation(activeId, false);
+    }
+
+    function initFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const c = params.get('c');
+      if (c && getConversation(c)) {
+        selectConversation(c, false);
+      } else if (window.innerWidth >= 1024 && getConversations().length) {
+        selectConversation(getConversations()[0].id, false);
+      } else {
+        updateMobileLayout(false);
+      }
+    }
+
+    FrameFlowSidebar.mount('sidebar-mount', 'chat');
+    renderInbox();
+    initFromUrl();
+
+    document.getElementById('inbox-search').addEventListener('input', (e) => {
+      inboxQuery = e.target.value;
+      renderInbox();
+    });
+
+    document.getElementById('chat-form').addEventListener('submit', handleSend);
+
+    document.getElementById('btn-back-inbox').addEventListener('click', () => {
+      activeId = null;
+      document.getElementById('chat-active').classList.add('hidden');
+      document.getElementById('chat-empty-state').classList.remove('hidden');
+      updateMobileLayout(false);
+      renderInbox();
+      const url = new URL(window.location.href);
+      url.searchParams.delete('c');
+      history.replaceState({}, '', url);
+    });
+
+    window.addEventListener('ff-chat-updated', () => {
+      renderInbox();
+      if (activeId) {
+        const conv = getConversation(activeId);
+        if (conv) renderMessages(conv);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      updateMobileLayout(!!activeId);
+    });
+
+    lucide.createIcons();
+  </script>
+</body>
+</html>
